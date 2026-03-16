@@ -1,0 +1,21 @@
+# Desktop Application UI
+PySide6>=6.6.0
+qasync>=0.27.1
+
+# Computer Vision & YOLO26 (NMS-free end-to-end inference)
+ultralytics>=8.4.0
+opencv-python>=4.9.0.80
+numpy>=1.26.0
+openvino>=2024.0.0
+torch>=2.5.0
+torchvision>=0.20.0
+
+# PLC Communication (optional)
+python-snap7>=1.3
+
+# Pydantic for data validation
+pydantic>=2.5.0
+
+# Testing (install with: pip install -r requirements.txt)
+pytest>=8.0.0
+httpx>=0.27.0
