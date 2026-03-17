@@ -40,6 +40,8 @@ class CameraFormDialog(QDialog):
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
         self.stream_path_input = QLineEdit()
+        self.enabled_check = QCheckBox("Kamera Aktif")
+        self.enabled_check.setChecked(True)
 
         conn_layout.addWidget(QLabel("Adı:"), 0, 0)
         conn_layout.addWidget(self.name_input, 0, 1)
@@ -53,6 +55,7 @@ class CameraFormDialog(QDialog):
         conn_layout.addWidget(self.password_input, 4, 1)
         conn_layout.addWidget(QLabel("RTSP Yolu:"), 5, 0)
         conn_layout.addWidget(self.stream_path_input, 5, 1)
+        conn_layout.addWidget(self.enabled_check, 6, 0, 1, 2)
 
         cols_layout.addWidget(conn_group)
 
@@ -120,6 +123,7 @@ class CameraFormDialog(QDialog):
         self.username_input.setText(d.get("username", "admin"))
         self.password_input.setText(d.get("password", ""))
         self.stream_path_input.setText(d.get("stream_path", ""))
+        self.enabled_check.setChecked(bool(d.get("enabled", True)))
 
         self.model_size_combo.setCurrentText(d.get("model_size", "n"))
         self.custom_model_input.setText(d.get("custom_model", ""))
@@ -150,6 +154,12 @@ class CameraFormDialog(QDialog):
             def parse_classes(text):
                 return [int(x.strip()) for x in text.split(",") if x.strip().isdigit()]
 
+            # Validation
+            if not self.ip_input.text().strip():
+                raise ValueError("IP Adresi boş olamaz.")
+            if not self.password_input.text().strip():
+                raise ValueError("Kamera parolası boş olamaz.")
+
             cam_data = {
                 "id": req_id,
                 "name": self.name_input.text(),
@@ -162,6 +172,7 @@ class CameraFormDialog(QDialog):
                 "frame_skip": self.frame_skip_input.value(),
                 "confidence": self.confidence_input.value(),
                 "blur_faces": self.blur_faces_checkbox.isChecked(),
+                "enabled": self.enabled_check.isChecked(),
                 "detect_classes": parse_classes(self.detect_classes_input.text()),
                 "custom_model": self.custom_model_input.text() or None,
                 "plc_outputs": [], # Rebuilt below
@@ -169,12 +180,16 @@ class CameraFormDialog(QDialog):
                 "zones": self.existing_data.get("zones", None)
             }
 
-            # Rebuild PLC mappings
+            # Rebuild PLC mappings while preserving existing detail (db/byte/bit)
+            existing_outputs = {o["plc_id"]: o for o in self.existing_data.get("plc_outputs", []) if "plc_id" in o}
             for i in range(self.plc_list.count()):
                 item = self.plc_list.item(i)
                 if item.checkState() == Qt.Checked:
                     plc_id = item.data(Qt.UserRole)
-                    cam_data["plc_outputs"].append({"plc_id": plc_id})
+                    if plc_id in existing_outputs:
+                        cam_data["plc_outputs"].append(existing_outputs[plc_id])
+                    else:
+                        cam_data["plc_outputs"].append({"plc_id": plc_id})
 
             from backend.models import CameraConfig
             cfg = CameraConfig(**cam_data)
@@ -188,32 +203,43 @@ class CameraFormDialog(QDialog):
 
             # Hot-reload / restart handling
             if self.is_adding:
-                AppState.process_mgr.start_camera(cam_data)
-                AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
-            else:
-                old = self.existing_data
-                needs_restart = any([
-                    old.get("ip") != cam_data["ip"],
-                    old.get("port") != cam_data["port"],
-                    old.get("username") != cam_data["username"],
-                    old.get("password") != cam_data["password"],
-                    old.get("stream_path") != cam_data["stream_path"],
-                    old.get("model_size") != cam_data["model_size"],
-                    old.get("custom_model") != cam_data["custom_model"],
-                ])
-
-                if needs_restart:
-                    AppState.process_mgr.stop_camera(req_id)
+                if cam_data["enabled"]:
                     AppState.process_mgr.start_camera(cam_data)
                     AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
-                else:
-                    AppState.process_mgr.send_command(req_id, {
-                        "cmd": "update_config",
-                        "confidence": cam_data["confidence"],
-                        "frame_skip": cam_data["frame_skip"],
-                        "blur_faces": cam_data["blur_faces"],
-                        "detect_classes": cam_data["detect_classes"],
-                    })
+            else:
+                old = self.existing_data
+                was_enabled = old.get("enabled", True)
+                is_enabled = cam_data["enabled"]
+
+                if was_enabled and not is_enabled:
+                    AppState.process_mgr.stop_camera(req_id)
+                elif not was_enabled and is_enabled:
+                    AppState.process_mgr.start_camera(cam_data)
+                elif is_enabled:
+                    needs_restart = any([
+                        old.get("ip") != cam_data["ip"],
+                        old.get("port") != cam_data["port"],
+                        old.get("username") != cam_data["username"],
+                        old.get("password") != cam_data["password"],
+                        old.get("stream_path") != cam_data["stream_path"],
+                        old.get("model_size") != cam_data["model_size"],
+                        old.get("custom_model") != cam_data["custom_model"],
+                    ])
+
+                    if needs_restart:
+                        AppState.process_mgr.stop_camera(req_id)
+                        AppState.process_mgr.start_camera(cam_data)
+                    else:
+                        AppState.process_mgr.send_command(req_id, {
+                            "cmd": "update_config",
+                            "confidence": cam_data["confidence"],
+                            "frame_skip": cam_data["frame_skip"],
+                            "blur_faces": cam_data["blur_faces"],
+                            "detect_classes": cam_data["detect_classes"],
+                        })
+                
+                # Sync PLC queues in all cases after change
+                AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
 
             self.accept()
         except Exception as e:

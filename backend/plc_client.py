@@ -72,9 +72,15 @@ def update_plc(
     mappings = config.get("camera_mappings", {})
     if mappings and camera_states:
         for cam_id, mapping in mappings.items():
+            if not isinstance(mapping, dict):
+                continue
             val = camera_states.get(cam_id, False)
-            target_db = mapping.get("db_number", global_db)
-            set_bit(target_db, mapping["byte_idx"], mapping["bit_idx"], val)
+            target_db = mapping.get("db_number") or global_db
+            byte_idx = mapping.get("byte_idx")
+            bit_idx = mapping.get("bit_idx")
+            
+            if byte_idx is not None and bit_idx is not None:
+                set_bit(target_db, byte_idx, bit_idx, val)
 
     # 3. Per-camera signals from Camera config (Many-to-Many explicit outputs)
     if cameras_cfg and camera_states:
@@ -83,12 +89,12 @@ def update_plc(
             outputs = cam_data.get("plc_outputs") or []
             for out in outputs:
                 if out.get("plc_id") == plc_id:
-                    set_bit(
-                        out.get("db_number", global_db),
-                        out["byte_idx"],
-                        out["bit_idx"],
-                        val
-                    )
+                    target_db = out.get("db_number") or global_db
+                    byte_idx = out.get("byte_idx")
+                    bit_idx = out.get("bit_idx")
+                    
+                    if byte_idx is not None and bit_idx is not None:
+                        set_bit(target_db, byte_idx, bit_idx, val)
 
     # 4. Batch write each modified (DB, byte)
     for (db, byte_idx), data in writes.items():

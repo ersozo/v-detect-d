@@ -63,11 +63,17 @@ class OpenGLVideoWidget(QOpenGLWidget):
         else:
             painter.fillRect(self.rect(), Qt.black)
 
+    def mouseDoubleClickEvent(self, event):
+        # Propagate to parent CameraCard
+        if isinstance(self.parent(), QWidget):
+            self.parent().mouseDoubleClickEvent(event)
+
 
 class CameraCard(QWidget):
     """A card that displays the OpenGL feed and some metadata/controls."""
     camera_edited = Signal()
     camera_deleted = Signal()
+    double_clicked = Signal(str) # Emits camera_id
 
     def __init__(self, camera_id, mp_queue, config_data):
         super().__init__()
@@ -93,11 +99,16 @@ class CameraCard(QWidget):
 
         self.delete_btn = QPushButton("Sil")
         self.delete_btn.clicked.connect(self.delete_camera)
-        self.delete_btn.setFixedWidth(100)
+        self.delete_btn.setFixedWidth(60)
         self.delete_btn.setStyleSheet("background-color: #ef4444; color: white;")
+
+        self.toggle_btn = QPushButton()
+        self.toggle_btn.setFixedWidth(100)
+        self.toggle_btn.clicked.connect(self.toggle_camera)
 
         self.header_layout.addWidget(self.name_label)
         self.header_layout.addStretch()
+        self.header_layout.addWidget(self.toggle_btn)
         self.header_layout.addWidget(self.roi_btn)
         self.header_layout.addWidget(self.edit_btn)
         self.header_layout.addWidget(self.delete_btn)
@@ -108,10 +119,9 @@ class CameraCard(QWidget):
         self.video_widget.setMinimumSize(320, 240)
         self.layout.addWidget(self.video_widget, stretch=1)
 
-        # Start the queue worker
-        self.worker = CameraWorker(camera_id, mp_queue)
-        self.worker.new_frame.connect(self.video_widget.update_frame)
-        self.worker.start()
+        # Start/Stop the queue worker based on state
+        self.worker = None
+        self.update_ui_state()
 
         self.update_roi_btn_text()
 
@@ -139,6 +149,64 @@ class CameraCard(QWidget):
         if dialog.exec():
             self.camera_edited.emit()
 
+    def update_ui_state(self):
+        cam_data = AppState.cameras.get(self.camera_id, {})
+        is_enabled = cam_data.get("enabled", True)
+        
+        if is_enabled:
+            self.toggle_btn.setText("Durdur")
+            self.toggle_btn.setStyleSheet("background-color: #f59e0b; color: white; font-weight: bold;")
+            self.name_label.setStyleSheet("font-weight: bold; color: #10b981;") # Greenish
+            self.roi_btn.setEnabled(True)
+            
+            # Start worker if not running
+            if not self.worker:
+                q = AppState.process_mgr.frame_queues.get(self.camera_id)
+                if q:
+                    self.worker = CameraWorker(self.camera_id, q)
+                    self.worker.new_frame.connect(self.video_widget.update_frame)
+                    self.worker.start()
+        else:
+            self.toggle_btn.setText("Başlat")
+            self.toggle_btn.setStyleSheet("background-color: #10b981; color: white; font-weight: bold;")
+            self.name_label.setStyleSheet("font-weight: bold; color: #6b7280;") # Gray
+            self.roi_btn.setEnabled(False)
+            
+            # Stop worker if running
+            if self.worker:
+                self.worker.stop()
+                self.worker = None
+            
+            # Clear frame
+            self.video_widget.update_frame(None, self.camera_id)
+
+    def toggle_camera(self):
+        cam_data = AppState.cameras.get(self.camera_id, {})
+        new_state = not cam_data.get("enabled", True)
+        
+        # Update AppState
+        cam_data["enabled"] = new_state
+        AppState.cameras[self.camera_id] = cam_data
+        
+        # Perspective: Start or Stop process
+        if new_state:
+            # Re-generate URL in case it changed (though usually handled in Edit)
+            from backend.models import CameraConfig
+            cfg = CameraConfig(**cam_data)
+            cam_data["url"] = cfg.get_rtsp_url()
+            AppState.process_mgr.start_camera(cam_data)
+        else:
+            AppState.process_mgr.stop_camera(self.camera_id)
+            
+        # Sync PLC
+        AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
+        
+        # Save config
+        from backend.config import save_cameras
+        save_cameras(AppState.cameras)
+        
+        self.update_ui_state()
+
     def delete_camera(self):
         reply = QMessageBox.question(
             self, "Uyarı",
@@ -160,3 +228,6 @@ class CameraCard(QWidget):
     def stop_worker(self):
         if self.worker:
             self.worker.stop()
+
+    def mouseDoubleClickEvent(self, event):
+        self.double_clicked.emit(self.camera_id)

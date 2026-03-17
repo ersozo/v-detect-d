@@ -142,12 +142,16 @@ class PLCFormDialog(QDialog):
                 "camera_mappings": {} # Rebuilt below
             }
 
-            # Rebuild mappings from checked items
+            # Rebuild mappings while preserving existing detail
+            existing_mappings = self.existing_data.get("camera_mappings", {})
             for i in range(self.cam_list.count()):
                 item = self.cam_list.item(i)
                 if item.checkState() == Qt.Checked:
                     cam_id = item.data(Qt.UserRole)
-                    data["camera_mappings"][cam_id] = True # Basic mapping
+                    if cam_id in existing_mappings:
+                        data["camera_mappings"][cam_id] = existing_mappings[cam_id]
+                    else:
+                        data["camera_mappings"][cam_id] = {} # Empty dict satisfies PLCCameraMapping with Optionals
 
             if "instances" not in AppState.plc_config:
                 AppState.plc_config["instances"] = {}
@@ -163,4 +167,88 @@ class PLCFormDialog(QDialog):
 
             self.accept()
         except ValueError as e:
-            QMessageBox.warning(self, "Invalid input", str(e))
+            QMessageBox.warning(self, "Hata", f"Geçersiz input: {e}")
+        except Exception as e:
+            QMessageBox.warning(self, "Hata", str(e))
+
+class PLCManagerDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("PLC Yönetimi")
+        self.setMinimumWidth(400)
+        self.setup_ui()
+        self.populate()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+
+        self.plc_list = QListWidget()
+        layout.addWidget(QLabel("Kayıtlı PLC'ler:"))
+        layout.addWidget(self.plc_list)
+
+        btn_layout = QHBoxLayout()
+        add_btn = QPushButton("PLC Ekle")
+        add_btn.clicked.connect(self.add_plc)
+        
+        edit_btn = QPushButton("Düzenle")
+        edit_btn.clicked.connect(self.edit_plc)
+
+        del_btn = QPushButton("Sil")
+        del_btn.setStyleSheet("background-color: #ef4444; color: white;")
+        del_btn.clicked.connect(self.delete_plc)
+
+        close_btn = QPushButton("Kapat")
+        close_btn.clicked.connect(self.accept)
+
+        btn_layout.addWidget(add_btn)
+        btn_layout.addWidget(edit_btn)
+        btn_layout.addWidget(del_btn)
+        btn_layout.addStretch()
+        btn_layout.addWidget(close_btn)
+        layout.addLayout(btn_layout)
+
+    def populate(self):
+        self.plc_list.clear()
+        instances = AppState.plc_config.get("instances", {})
+        for plc_id, cfg in instances.items():
+            name = cfg.get("name", plc_id)
+            status = " [Aktif]" if cfg.get("enabled") else " [Pasif]"
+            item = QListWidgetItem(f"{name}{status}")
+            item.setData(Qt.UserRole, plc_id)
+            self.plc_list.addItem(item)
+
+    def add_plc(self):
+        dialog = PLCFormDialog(self)
+        if dialog.exec():
+            self.populate()
+
+    def edit_plc(self):
+        item = self.plc_list.currentItem()
+        if not item:
+            return
+        plc_id = item.data(Qt.UserRole)
+        dialog = PLCFormDialog(self, plc_id=plc_id)
+        if dialog.exec():
+            self.populate()
+
+    def delete_plc(self):
+        item = self.plc_list.currentItem()
+        if not item:
+            return
+        plc_id = item.data(Qt.UserRole)
+        
+        # Confirm
+        name = AppState.plc_config["instances"][plc_id].get("name", plc_id)
+        reply = QMessageBox.question(self, "Uyarı", f"'{name}' PLC'sini silmek istediğinizden emin misiniz?", 
+                                     QMessageBox.Yes | QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            del AppState.plc_config["instances"][plc_id]
+            if AppState.plc_config.get("default_plc_id") == plc_id:
+                # Pick another one or None
+                ids = list(AppState.plc_config["instances"].keys())
+                AppState.plc_config["default_plc_id"] = ids[0] if ids else None
+            
+            from backend.config import save_plc_config
+            save_plc_config(AppState.plc_config)
+            AppState.plc_mgr.set_config(AppState.plc_config)
+            self.populate()

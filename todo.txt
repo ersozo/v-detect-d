@@ -1,0 +1,4 @@
+- [DONE] PLC-kamera kayıt buglar
+- [DONE] Kamera Başlat/Durdur
+- [DONE] PLC ekleme
+- [DONE] camera form IP no and pwd required

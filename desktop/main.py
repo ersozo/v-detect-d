@@ -16,9 +16,10 @@ async def main_loop():
     try:
         AppState.init()
 
-        # Start backend components
+        # Start backend components for enabled cameras
         for cam_id, cam_data in AppState.cameras.items():
-            AppState.process_mgr.start_camera(cam_data)
+            if cam_data.get("enabled", True):
+                AppState.process_mgr.start_camera(cam_data)
 
         AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
         

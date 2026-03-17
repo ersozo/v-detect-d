@@ -22,6 +22,7 @@ class CameraConfig(BaseModel):
     frame_skip: int = 0
     confidence: float = 0.5
     blur_faces: bool = False
+    enabled: bool = True
     plc_outputs: Optional[list["CameraPLCOutput"]] = None
 
     def get_rtsp_url(self) -> str:
@@ -67,17 +68,17 @@ class ZonesUpdate(BaseModel):
 
 class PLCCameraMapping(BaseModel):
     """Per-camera PLC address: maps a camera to a specific DB bit."""
-    db_number: int
-    byte_idx: int
-    bit_idx: int
+    db_number: Optional[int] = None
+    byte_idx: Optional[int] = None
+    bit_idx: Optional[int] = None
 
 
 class CameraPLCOutput(BaseModel):
     """Links a camera to a specific PLC and its bit address."""
     plc_id: str
-    db_number: int
-    byte_idx: int
-    bit_idx: int
+    db_number: Optional[int] = None
+    byte_idx: Optional[int] = None
+    bit_idx: Optional[int] = None
 
 
 class PLCInstance(BaseModel):

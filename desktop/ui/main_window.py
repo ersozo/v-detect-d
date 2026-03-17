@@ -10,7 +10,7 @@ from desktop.core.app_state import AppState
 from desktop.ui.camera_widget import CameraCard
 
 from desktop.ui.forms.camera_form import CameraFormDialog
-from desktop.ui.forms.plc_form import PLCFormDialog
+from desktop.ui.forms.plc_form import PLCFormDialog, PLCManagerDialog
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -46,15 +46,15 @@ class MainWindow(QMainWindow):
         # Style buttons roughly matching original UI style
         button_style_cam = "padding: 8px 16px; background-color: #3b82f6; color: white; border-radius: 4px; font-weight: bold;"
         button_style_plc = "padding: 8px 16px; background-color: #777777; color: white; border-radius: 4px; font-weight: bold;"
-        button_style_panel = "padding: 8px 16px; background-color: #ad430d; color: white; border-radius: 4px; font-weight: bold;"
+        button_style_panel = "padding: 8px 16px; background-color: #777777; color: white; border-radius: 4px; font-weight: bold;"
         self.add_cam_btn.setStyleSheet(button_style_cam)
         self.plc_set_btn.setStyleSheet(button_style_plc)
         self.toggle_sidebar_btn.setStyleSheet(button_style_panel)
 
         self.header_layout.addStretch()
         self.header_layout.addWidget(self.plc_status_label)
-        self.header_layout.addWidget(self.add_cam_btn)
         self.header_layout.addWidget(self.plc_set_btn)
+        self.header_layout.addWidget(self.add_cam_btn)
         self.header_layout.addWidget(self.toggle_sidebar_btn)
 
         self.plc_set_btn.clicked.connect(self.open_plc_settings)
@@ -114,6 +114,7 @@ class MainWindow(QMainWindow):
         self.status_timer.start(2000) # Every 2s
 
         self.camera_cards = {}
+        self.fullscreen_camera_id = None
         self.populate_cameras()
         self.refresh_events()
 
@@ -145,7 +146,7 @@ class MainWindow(QMainWindow):
         # Update PLC Status
         statuses = AppState.plc_mgr.get_statuses()
         if not statuses:
-            self.plc_status_label.setText("PLC: PASİF")
+            self.plc_status_label.setText("PLC")
             self.plc_status_label.setStyleSheet("background-color: #374151; padding: 4px 8px; border-radius: 4px; color: #9ca3af;")
         else:
             # Check if any are connected (or show first one)
@@ -207,20 +208,24 @@ class MainWindow(QMainWindow):
         """Loads cameras from AppState and adds to grid."""
         idx = 0
         for cam_id, cam_data in AppState.cameras.items():
-            # Get the queue from the process manager
-            q = AppState.process_mgr.frame_queues.get(cam_id)
-            if q is None:
+            # If in full-screen mode, only show the selected camera
+            if self.fullscreen_camera_id and cam_id != self.fullscreen_camera_id:
                 continue
 
             row = idx // 2
             col = idx % 2
 
-            card = CameraCard(cam_id, q, cam_data)
+            # Pass None for queue; CameraCard.update_ui_state will fetch it from process_mgr
+            card = CameraCard(cam_id, None, cam_data)
             card.camera_edited.connect(self.refresh_cameras)
             card.camera_deleted.connect(self.refresh_cameras)
+            card.double_clicked.connect(self.on_camera_double_clicked)
             self.grid_layout.addWidget(card, row, col)
             self.camera_cards[cam_id] = card
             idx += 1
+
+        # Sync PLC queues once all cards are potentially started
+        AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
 
     def open_camera_form(self):
         dialog = CameraFormDialog(self)
@@ -229,11 +234,19 @@ class MainWindow(QMainWindow):
             self.refresh_cameras()
 
     def open_plc_settings(self):
-        # Allow default PLC or pick any from dropdown theoretically, just give None for new.
-        # Actually since we can have multi-plc, we could just open the first one for now
-        default_plc = AppState.plc_config.get("default_plc_id")
-        dialog = PLCFormDialog(self, plc_id=default_plc)
+        dialog = PLCManagerDialog(self)
         dialog.exec()
+
+    @Slot(str)
+    def on_camera_double_clicked(self, camera_id):
+        if self.fullscreen_camera_id == camera_id:
+            # Already in full-screen for this camera, go back to grid
+            self.fullscreen_camera_id = None
+        else:
+            # Go full-screen for this camera
+            self.fullscreen_camera_id = camera_id
+        
+        self.refresh_cameras()
 
     def refresh_cameras(self):
         for card in self.camera_cards.values():
