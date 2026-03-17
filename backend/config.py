@@ -35,8 +35,8 @@ DEFAULT_PLC_CONFIG = {
     "db_number": 38,
     "lifebit_byte": 4,
     "lifebit_bit": 0,
-    "person_byte": 6,
-    "person_bit": 0,
+    "detection_byte": 6,
+    "detection_bit": 0,
     "camera_mappings": {},
 }
 

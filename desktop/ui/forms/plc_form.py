@@ -61,18 +61,18 @@ class PLCFormDialog(QDialog):
 
         self.lb_byte_input = QLineEdit()
         self.lb_bit_input = QLineEdit()
-        self.person_byte_input = QLineEdit()
-        self.person_bit_input = QLineEdit()
+        self.det_byte_input = QLineEdit()
+        self.det_bit_input = QLineEdit()
 
         sig_layout.addWidget(QLabel("Lifebit Byte:"), 0, 0)
         sig_layout.addWidget(self.lb_byte_input, 0, 1)
         sig_layout.addWidget(QLabel("Lifebit Bit:"), 0, 2)
         sig_layout.addWidget(self.lb_bit_input, 0, 3)
 
-        sig_layout.addWidget(QLabel("Alarm Byte:"), 1, 0)
-        sig_layout.addWidget(self.person_byte_input, 1, 1)
-        sig_layout.addWidget(QLabel("Alarm Bit:"), 1, 2)
-        sig_layout.addWidget(self.person_bit_input, 1, 3)
+        sig_layout.addWidget(QLabel("Tetik (Detection) Byte:"), 1, 0)
+        sig_layout.addWidget(self.det_byte_input, 1, 1)
+        sig_layout.addWidget(QLabel("Tetik (Detection) Bit:"), 1, 2)
+        sig_layout.addWidget(self.det_bit_input, 1, 3)
 
         layout.addWidget(sig_group)
 
@@ -108,8 +108,8 @@ class PLCFormDialog(QDialog):
 
         self.lb_byte_input.setText(str(d.get("lifebit_byte", 0)))
         self.lb_bit_input.setText(str(d.get("lifebit_bit", 0)))
-        self.person_byte_input.setText(str(d.get("person_byte", 0)))
-        self.person_bit_input.setText(str(d.get("person_bit", 0)))
+        self.det_byte_input.setText(str(d.get("detection_byte", 0)))
+        self.det_bit_input.setText(str(d.get("detection_bit", 0)))
 
         # Populate camera list
         self.cam_list.clear()
@@ -137,8 +137,8 @@ class PLCFormDialog(QDialog):
                 "db_number": int(self.db_input.text() or 0),
                 "lifebit_byte": int(self.lb_byte_input.text() or 0),
                 "lifebit_bit": int(self.lb_bit_input.text() or 0),
-                "person_byte": int(self.person_byte_input.text() or 0),
-                "person_bit": int(self.person_bit_input.text() or 0),
+                "detection_byte": int(self.det_byte_input.text() or 0),
+                "detection_bit": int(self.det_bit_input.text() or 0),
                 "camera_mappings": {} # Rebuilt below
             }
 

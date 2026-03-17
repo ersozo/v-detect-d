@@ -100,8 +100,8 @@ class PLCInstance(BaseModel):
     db_number: int = 38
     lifebit_byte: int = 4
     lifebit_bit: int = 0
-    person_byte: int = 6
-    person_bit: int = 0
+    detection_byte: int = 6
+    detection_bit: int = 0
     # Map of camera_id -> mapping for this specific PLC
     camera_mappings: dict[str, PLCCameraMapping] = {}
 

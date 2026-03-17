@@ -242,8 +242,8 @@ class RoiEditorDialog(QDialog):
         self.z_name_in = QLineEdit()
         self.z_name_in.setPlaceholderText("örn. Güvenlik Bölgesi")
         self.z_sev_cb = QComboBox()
-        self.z_sev_cb.addItem("Yeşil", "uyarı")
-        self.z_sev_cb.addItem("Kırmızı", "alarm")
+        self.z_sev_cb.addItem("Yeşil (Uyarı)", "warning")
+        self.z_sev_cb.addItem("Kırmızı (Alarm)", "danger")
 
         add_btn = QPushButton("Listeye Ekle")
         add_btn.clicked.connect(self.add_current_zone)

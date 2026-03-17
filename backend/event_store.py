@@ -16,8 +16,8 @@ _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS events (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     camera_id   TEXT    NOT NULL,
-    person_detected INTEGER NOT NULL DEFAULT 0,
-    person_count    INTEGER NOT NULL DEFAULT 0,
+    is_detected INTEGER NOT NULL DEFAULT 0,
+    obj_count   INTEGER NOT NULL DEFAULT 0,
     timestamp   REAL    NOT NULL
 );
 """
@@ -46,15 +46,24 @@ class EventStore:
         self._conn.commit()
         logger.info("Event store ready: %s", self._db_path)
 
-    def log(self, camera_id: str, person_detected: bool, person_count: int,
+    def log(self, camera_id: str, is_detected: bool, obj_count: int,
             timestamp: float | None = None) -> None:
         ts = timestamp or time.time()
         with self._lock:
-            self._conn.execute(
-                "INSERT INTO events (camera_id, person_detected, person_count, timestamp) "
-                "VALUES (?, ?, ?, ?)",
-                (camera_id, int(person_detected), person_count, ts),
-            )
+            # Try to insert into new schema, fallback if table exists with old schema
+            try:
+                self._conn.execute(
+                    "INSERT INTO events (camera_id, is_detected, obj_count, timestamp) "
+                    "VALUES (?, ?, ?, ?)",
+                    (camera_id, int(is_detected), obj_count, ts),
+                )
+            except sqlite3.OperationalError:
+                # Handle legacy schema
+                self._conn.execute(
+                    "INSERT INTO events (camera_id, person_detected, person_count, timestamp) "
+                    "VALUES (?, ?, ?, ?)",
+                    (camera_id, int(is_detected), obj_count, ts),
+                )
             self._conn.commit()
 
     def query(
@@ -79,22 +88,32 @@ class EventStore:
             params.append(to_ts)
 
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-        sql = (
-            f"SELECT id, camera_id, person_detected, person_count, timestamp "
-            f"FROM events {where} ORDER BY timestamp DESC LIMIT ? OFFSET ?"
-        )
-        params.extend([limit, offset])
-
-        with self._lock:
-            cursor = self._conn.execute(sql, params)
-            rows = cursor.fetchall()
+        
+        # Try new schema first
+        try:
+            sql = (
+                f"SELECT id, camera_id, is_detected, obj_count, timestamp "
+                f"FROM events {where} ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            )
+            with self._lock:
+                cursor = self._conn.execute(sql, params + [limit, offset])
+                rows = cursor.fetchall()
+        except sqlite3.OperationalError:
+            # Fallback for legacy schema
+            sql = (
+                f"SELECT id, camera_id, person_detected, person_count, timestamp "
+                f"FROM events {where} ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            )
+            with self._lock:
+                cursor = self._conn.execute(sql, params + [limit, offset])
+                rows = cursor.fetchall()
 
         return [
             {
                 "id": r[0],
                 "camera_id": r[1],
-                "person_detected": bool(r[2]),
-                "person_count": r[3],
+                "is_detected": bool(r[2]),
+                "obj_count": r[3],
                 "timestamp": r[4],
             }
             for r in rows

@@ -90,9 +90,9 @@ class PLCManager:
         interval = 1.0 / self.UPDATE_HZ
         logger.info("Multi-PLC Manager started (%d Hz)", self.UPDATE_HZ)
 
-        # To prevent flickering alerts, we track "When did we last see a person?"
+        # To prevent flickering alerts, we track "When did we last see a detection?"
         OFF_DELAY_SECONDS = 0.8
-        last_seen_person: dict[str, float] = {}
+        last_seen_detection: dict[str, float] = {}
         alert_sent_state: dict[str, bool] = {}
 
         while self._running:
@@ -100,10 +100,10 @@ class PLCManager:
             for camera_id, q in list(self._event_queues.items()):
                 try:
                     event = q.get_nowait()
-                    new_raw_state = bool(event.get("person_detected", False))
+                    new_raw_state = bool(event.get("is_detected", False))
 
                     if new_raw_state:
-                        last_seen_person[camera_id] = time.time()
+                        last_seen_detection[camera_id] = time.time()
 
                     self._camera_states[camera_id] = new_raw_state
                     if new_raw_state and event.get("label"):
@@ -115,8 +115,8 @@ class PLCManager:
                             None,
                             lambda: self._event_store.log(
                                 camera_id=camera_id,
-                                person_detected=new_raw_state,
-                                person_count=event.get("count", 0),
+                                is_detected=new_raw_state,
+                                obj_count=event.get("count", 0),
                                 timestamp=event.get("timestamp"),
                             )
                         )
@@ -127,7 +127,7 @@ class PLCManager:
             now = time.time()
             for camera_id in list(self._event_queues.keys()):
                 is_currently_detected = self._camera_states.get(camera_id, False)
-                ts_last_seen = last_seen_person.get(camera_id, 0)
+                ts_last_seen = last_seen_detection.get(camera_id, 0)
                 smoothed_state = is_currently_detected or (now - ts_last_seen < OFF_DELAY_SECONDS)
 
                 prev_alert_state = alert_sent_state.get(camera_id)
@@ -139,7 +139,7 @@ class PLCManager:
                         try:
                             self._alert_callback({
                                 "camera_id": camera_id,
-                                "person_detected": smoothed_state,
+                                "is_detected": smoothed_state,
                                 "timestamp": now,
                                 "count": 1 if smoothed_state else 0,
                                 "label": self._camera_labels.get(camera_id, "Nesne")
@@ -208,7 +208,7 @@ class PLCManager:
                                     mapped_cam_ids.add(cam_id)
 
                             # Aggregate person detection for ONLY these cameras
-                            any_person_for_plc = any(
+                            any_triggered_for_plc = any(
                                 alert_sent_state.get(cid, False)
                                 for cid in mapped_cam_ids
                             )
@@ -220,7 +220,7 @@ class PLCManager:
                                     plc_client,
                                     plc_cfg,
                                     lifebit.toggle(),
-                                    any_person_for_plc,
+                                    any_triggered_for_plc,
                                     alert_sent_state,
                                     cameras_cfg=self._cameras
                                 )

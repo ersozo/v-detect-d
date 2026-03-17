@@ -83,7 +83,7 @@ def _draw_detections(
         if class_names and cls_id in class_names:
             label = translate_label(class_names[cls_id])
         else:
-            label = f"ID:{cls_id}" if cls_id != 0 else "Kişi"
+            label = f"ID:{cls_id}" if cls_id != 0 else "Nesne"
 
         cv2.putText(
             frame,
@@ -261,7 +261,7 @@ class CameraProcess(multiprocessing.Process):
 
         frame_count = 0
         last_detections: list[dict] = []
-        last_detected = False
+        detection_active = False
         last_save_ts = 0.0
 
         while not self.stop_event.is_set():
@@ -287,7 +287,7 @@ class CameraProcess(multiprocessing.Process):
 
             if is_collecting:
                 last_detections = []
-                last_detected = False
+                detection_active = False
 
             if should_detect:
                 if zone_data:
@@ -311,7 +311,7 @@ class CameraProcess(multiprocessing.Process):
                     last_detections = detector.detect(
                         frame, roi_polygon, roi_bbox, self.detect_classes
                     )
-                last_detected = any(
+                detection_active = any(
                     d["in_roi"] for d in last_detections
                 )
 
@@ -323,10 +323,10 @@ class CameraProcess(multiprocessing.Process):
                     # Default color from list
                     color = ZONE_COLORS[i % len(ZONE_COLORS)]
 
-                    # Force explicit colors for known severities
-                    if zsev == "danger":
+                    # Force explicit colors for known severities (including legacy TR keys)
+                    if zsev in ["danger", "alarm"]:
                         color = (0, 0, 255)  # Red (BGR)
-                    elif zsev == "warning":
+                    elif zsev in ["warning", "uyarı"]:
                         color = (0, 255, 0)  # Green (BGR)
 
                     _draw_roi(display, zpoly, color=color, label=zname)
@@ -353,7 +353,7 @@ class CameraProcess(multiprocessing.Process):
                 self.event_queue,
                 {
                     "camera_id": self.camera_id,
-                    "person_detected": last_detected,
+                    "is_detected": detection_active,
                     "count": len(detected_objs),
                     "label": main_label,
                     "timestamp": time.time(),
@@ -362,7 +362,7 @@ class CameraProcess(multiprocessing.Process):
 
             # --- save capture (throttle to 1 per second) ---
             now = time.time()
-            if last_detected and should_detect and now - last_save_ts >= 1.0:
+            if detection_active and should_detect and now - last_save_ts >= 1.0:
                 last_save_ts = now
                 try:
                     cv2.imwrite(

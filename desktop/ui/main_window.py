@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
 
         # Main header
         self.header_layout = QHBoxLayout()
-        self.header_label = QLabel("V-Detect Nesne Tespit")
+        self.header_label = QLabel("V-Detect")
         self.header_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #000000;")
         self.header_layout.addWidget(self.header_label)
 
@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
         # Style buttons roughly matching original UI style
         button_style_cam = "padding: 8px 16px; background-color: #3b82f6; color: white; border-radius: 4px; font-weight: bold;"
         button_style_plc = "padding: 8px 16px; background-color: #777777; color: white; border-radius: 4px; font-weight: bold;"
-        button_style_panel = "padding: 8px 16px; background-color: #777777; color: white; border-radius: 4px; font-weight: bold;"
+        button_style_panel = "padding: 8px 16px; background-color: #1F2937; color: white; border-radius: 4px; font-weight: bold;"
         self.add_cam_btn.setStyleSheet(button_style_cam)
         self.plc_set_btn.setStyleSheet(button_style_plc)
         self.toggle_sidebar_btn.setStyleSheet(button_style_panel)
@@ -123,12 +123,21 @@ class MainWindow(QMainWindow):
 
     @Slot(dict)
     def on_alert_received(self, event):
-        # This will be called from a background thread in PLCManager.run
-        # We should use a QTimer singleShot or async signal to update UI safely
-        # For simplicity, we can just trigger a refresh of the events next timer tick
-        # but let's try to add it immediately if person_detected is True
-        if event.get("person_detected"):
-            QTimer.singleShot(0, lambda: self.add_event_item(event))
+        # This is called from the PLCManager background thread
+        cam_id = event.get("camera_id")
+        detected = event.get("is_detected", False)
+
+        def update_ui():
+            # 1. Update list if detected
+            if detected:
+                self.add_event_item(event)
+
+            # 2. Update card visual state
+            card = self.camera_cards.get(cam_id)
+            if card:
+                card.set_alarm_visual(detected)
+
+        QTimer.singleShot(0, update_ui)
 
     def add_event_item(self, event):
         cam_name = AppState.cameras.get(event['camera_id'], {}).get('name', event['camera_id'])
@@ -182,7 +191,7 @@ class MainWindow(QMainWindow):
 
         import os
         filename = f"{int(ts)}.jpg"
-        
+
         # New pattern: ID_NAME (resolved via manager)
         folder_path = AppState.process_mgr.get_capture_dir(cam_id)
         filepath = os.path.join(folder_path, filename)
@@ -205,7 +214,7 @@ class MainWindow(QMainWindow):
         self.event_list.clear()
         for e in events:
             # We only show positive detections in the "Recent Events" sidebar for clarity
-            if e['person_detected']:
+            if e.get('is_detected'):
                 cam_name = AppState.cameras.get(e['camera_id'], {}).get('name', e['camera_id'])
                 ts_str = QDateTime.fromSecsSinceEpoch(int(e['timestamp'])).toString("HH:mm:ss")
                 item = QListWidgetItem(f"[{ts_str}] {cam_name}\nNesne Tespit Edildi")
@@ -253,7 +262,7 @@ class MainWindow(QMainWindow):
         else:
             # Go full-screen for this camera
             self.fullscreen_camera_id = camera_id
-        
+
         self.refresh_cameras()
 
     def refresh_cameras(self):

@@ -47,11 +47,11 @@ def update_plc(
     plc,
     config: dict,
     lifebit_value: bool,
-    person_detected: bool,
+    detection_active: bool,
     camera_states: dict[str, bool] | None = None,
     cameras_cfg: dict[str, dict] | None = None,
 ):
-    """Write lifebit + aggregate person status + per-camera bits to the PLC.
+    """Write lifebit + aggregate detection status + per-camera bits to the PLC.
     Groups writes by (DB, byte index) to prevent bit-overwrite and reduce network calls.
     """
     global_db = config["db_number"]
@@ -66,7 +66,7 @@ def update_plc(
 
     # 1. Main signals (global DB)
     set_bit(global_db, config["lifebit_byte"], config["lifebit_bit"], lifebit_value)
-    set_bit(global_db, config["person_byte"], config["person_bit"], person_detected)
+    set_bit(global_db, config["detection_byte"], config["detection_bit"], detection_active)
 
     # 2. Per-camera signals from PLC config (Group mappings)
     mappings = config.get("camera_mappings", {})

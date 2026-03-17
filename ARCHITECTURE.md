@@ -103,7 +103,7 @@ Annotate → Raw Frame Bytes (JPEG)
 V-Detect uses **Multiprocessing Queues** for inter-process communication:
 - **Frame Queue**: A "leaky" queue that holds exactly 1 frame. If a new frame arrives before the UI consumes the last one, the old one is discarded. This ensures zero latency.
 - **Control Queue**: Allows the UI to send commands (Set ROI, Update Sensitivity) to the camera processes while they are running.
-- **Event Queue**: Transfers detection data (class, zone, timestamp) to the main process for PLC triggering and database logging.
+- **Event Queue**: Transfers detection data (class, any_detected, timestamp) to the main process for PLC triggering and database logging.
 
 ---
 

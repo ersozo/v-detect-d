@@ -830,7 +830,7 @@ def _broadcast_alert(event: dict) -> None:
     import json as _json
     payload = _json.dumps(event)
     logger.info("Broadcasting UI Alert for %s: %s (clients=%d)",
-                event.get('camera_id'), event.get('person_detected'), len(_alert_clients))
+                event.get('camera_id'), event.get('is_detected'), len(_alert_clients))
     for q in list(_alert_clients):
         try:
             q.put_nowait(payload)
