@@ -106,8 +106,19 @@ class CameraCard(QWidget):
         self.toggle_btn.setFixedWidth(100)
         self.toggle_btn.clicked.connect(self.toggle_camera)
 
+        self.record_btn = QPushButton("Kaydet")
+        self.record_btn.setFixedWidth(80)
+        self.record_btn.clicked.connect(self.toggle_record)
+        
+        self.record_settings_btn = QPushButton("⚙") # Gear icon for settings
+        self.record_settings_btn.setFixedWidth(30)
+        self.record_settings_btn.clicked.connect(self.open_record_settings)
+        self.record_settings_btn.setToolTip("Veri Toplama Ayarları")
+
         self.header_layout.addWidget(self.name_label)
         self.header_layout.addStretch()
+        self.header_layout.addWidget(self.record_btn)
+        self.header_layout.addWidget(self.record_settings_btn)
         self.header_layout.addWidget(self.toggle_btn)
         self.header_layout.addWidget(self.roi_btn)
         self.header_layout.addWidget(self.edit_btn)
@@ -158,6 +169,8 @@ class CameraCard(QWidget):
             self.toggle_btn.setStyleSheet("background-color: #f59e0b; color: white; font-weight: bold;")
             self.name_label.setStyleSheet("font-weight: bold; color: #10b981;") # Greenish
             self.roi_btn.setEnabled(True)
+            self.record_btn.setEnabled(True)
+            self.record_settings_btn.setEnabled(True)
             
             # Start worker if not running
             if not self.worker:
@@ -171,6 +184,8 @@ class CameraCard(QWidget):
             self.toggle_btn.setStyleSheet("background-color: #10b981; color: white; font-weight: bold;")
             self.name_label.setStyleSheet("font-weight: bold; color: #6b7280;") # Gray
             self.roi_btn.setEnabled(False)
+            self.record_btn.setEnabled(False)
+            self.record_settings_btn.setEnabled(False)
             
             # Stop worker if running
             if self.worker:
@@ -179,6 +194,15 @@ class CameraCard(QWidget):
             
             # Clear frame
             self.video_widget.update_frame(None, self.camera_id)
+
+        # Update record button state
+        dc = cam_data.get("data_collection") or {}
+        if dc.get("enabled"):
+            self.record_btn.setText("Kaydı Durdur")
+            self.record_btn.setStyleSheet("background-color: #ef4444; color: white; font-weight: bold;")
+        else:
+            self.record_btn.setText("Kaydet")
+            self.record_btn.setStyleSheet("background-color: #374151; color: #d1d5db;")
 
     def toggle_camera(self):
         cam_data = AppState.cameras.get(self.camera_id, {})
@@ -206,6 +230,37 @@ class CameraCard(QWidget):
         save_cameras(AppState.cameras)
         
         self.update_ui_state()
+
+    def toggle_record(self):
+        cam_data = AppState.cameras.get(self.camera_id, {})
+        dc = cam_data.get("data_collection") or {
+            "enabled": False,
+            "mode": "frames",
+            "interval": 5
+        }
+        if isinstance(dc, object) and hasattr(dc, 'dict'): dc = dc.dict()
+        
+        new_state = not dc.get("enabled", False)
+        dc["enabled"] = new_state
+        cam_data["data_collection"] = dc
+        
+        # Save config
+        from backend.config import save_cameras
+        save_cameras(AppState.cameras)
+        
+        # Send command to process
+        AppState.process_mgr.send_command(self.camera_id, {
+            "cmd": "update_data_collection",
+            "config": dc
+        })
+        
+        self.update_ui_state()
+
+    def open_record_settings(self):
+        from desktop.ui.forms.data_collection_form import DataCollectionFormDialog
+        dialog = DataCollectionFormDialog(self.window(), camera_id=self.camera_id)
+        if dialog.exec():
+            self.update_ui_state()
 
     def delete_camera(self):
         reply = QMessageBox.question(

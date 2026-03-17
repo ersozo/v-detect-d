@@ -180,16 +180,24 @@ class MainWindow(QMainWindow):
         ts = data.get("ts")
         cam_id = data.get("cam_id")
 
-        from backend.config import CAPTURES_DIR
         import os
         filename = f"{int(ts)}.jpg"
-        # Images are saved in data/captures/<camera_id>/<timestamp>.jpg
-        filepath = os.path.join(CAPTURES_DIR, cam_id, filename)
+        
+        # New pattern: ID_NAME (resolved via manager)
+        folder_path = AppState.process_mgr.get_capture_dir(cam_id)
+        filepath = os.path.join(folder_path, filename)
+
+        # Fallback for old captures: just ID
+        if not os.path.exists(filepath):
+            from backend.config import CAPTURES_DIR
+            old_filepath = os.path.join(CAPTURES_DIR, cam_id, filename)
+            if os.path.exists(old_filepath):
+                filepath = old_filepath
 
         if os.path.exists(filepath):
             os.startfile(filepath)
         else:
-            QMessageBox.warning(self, "Hata", f"Görsel bulunamadı: {filename}\n(Görsel silinmiş veya henüz kaydedilmemiş olabilir.)")
+            QMessageBox.warning(self, "Hata", f"Görsel bulunamadı: {filename}")
 
     def refresh_events(self):
         """Initial load of events from SQLite."""
