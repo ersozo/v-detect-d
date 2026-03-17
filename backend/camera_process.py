@@ -221,6 +221,12 @@ class CameraProcess(multiprocessing.Process):
         self.response_queue = response_queue
         self.stop_event = stop_event
         self.jpeg_quality = 75
+        self.data_collection = {
+            "enabled": False,
+            "mode": "frames",
+            "interval": 5
+        }
+        self.video_writer = None
 
     # ------------------------------------------------------------------
     # Main loop (runs in child process)
@@ -270,11 +276,18 @@ class CameraProcess(multiprocessing.Process):
                 capture.reconnect()
                 continue
 
-            # --- detect (respecting frame_skip) ---
-            should_detect = (
+            # --- detect (respecting frame_skip and data_collection) ---
+            # Default behavior: Disable detection when collecting data to save CPU
+            is_collecting = self.data_collection.get("enabled", False)
+            
+            should_detect = (not is_collecting) and (
                 self.frame_skip == 0
                 or frame_count % (self.frame_skip + 1) == 0
             )
+
+            if is_collecting:
+                last_detections = []
+                last_detected = False
 
             if should_detect:
                 if zone_data:
@@ -359,6 +372,59 @@ class CameraProcess(multiprocessing.Process):
                 except Exception:
                     pass
 
+            # --- Data Collection (Raw frames or video for training) ---
+            if self.data_collection.get("enabled"):
+                mode = self.data_collection.get("mode", "frames")
+                train_dir = os.path.join(self.img_path, "training")
+                if not os.path.exists(train_dir):
+                    os.makedirs(train_dir, exist_ok=True)
+
+                if mode == "frames":
+                    # Release video writer if it was active
+                    if self.video_writer:
+                        self.video_writer.release()
+                        self.video_writer = None
+
+                    interval = self.data_collection.get("interval", 5)
+                    if frame_count % interval == 0:
+                        try:
+                            ts_ms = int(time.time() * 1000)
+                            cv2.imwrite(
+                                os.path.join(train_dir, f"raw_{ts_ms}.jpg"),
+                                frame,
+                            )
+                        except Exception: pass
+                
+                elif mode == "video":
+                    if self.video_writer is None:
+                        # Initialize VideoWriter
+                        ts_ms = int(time.time() * 1000)
+                        # Switch to AVI/XVID for better stability on Windows
+                        v_path = os.path.join(train_dir, f"rec_{ts_ms}.avi")
+                        # MJPG is widely supported on Windows without extra codecs
+                        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+                        h, w = frame.shape[:2]
+                        # Try to get real FPS from capture, else default to 20
+                        fps = capture.get_fps()
+                        if fps is None or fps <= 0 or fps > 120: 
+                            fps = 20.0
+                            
+                        self.video_writer = cv2.VideoWriter(v_path, fourcc, fps, (w, h))
+                        if not self.video_writer.isOpened():
+                            log.error("Failed to open VideoWriter for path: %s", v_path)
+                            self.video_writer = None
+                        else:
+                            log.info("Started video recording: %s at %d FPS (%dx%d)", v_path, fps, w, h)
+                    
+                    if self.video_writer:
+                        self.video_writer.write(frame)
+            else:
+                # Collection disabled, ensure video writer is released
+                if self.video_writer:
+                    log.info("Closing video recording.")
+                    self.video_writer.release()
+                    self.video_writer = None
+
             frame_count += 1
 
             if frame_count == 1:
@@ -366,6 +432,10 @@ class CameraProcess(multiprocessing.Process):
             elif frame_count % 300 == 0:
                 log.info("Frames processed: %d", frame_count)
 
+        if self.video_writer:
+            self.video_writer.release()
+            self.video_writer = None
+            
         capture.release()
         log.info("Process stopped")
 
@@ -416,6 +486,10 @@ class CameraProcess(multiprocessing.Process):
                 elif action == "update_quality":
                     if "quality" in cmd:
                         self.jpeg_quality = max(10, min(100, int(cmd["quality"])))
+
+                elif action == "update_data_collection":
+                    if "config" in cmd:
+                        self.data_collection = cmd["config"]
 
                 elif action == "get_frame":
                     frame = capture.read()

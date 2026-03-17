@@ -6,8 +6,9 @@ Exposes the IPC queues so the main process can read frames and events.
 
 import asyncio
 import logging
-import multiprocessing
 import os
+import multiprocessing
+import re
 from queue import Empty
 
 from camera_process import CameraProcess
@@ -42,7 +43,10 @@ class ProcessManager:
         response_q = multiprocessing.Queue(maxsize=1)
         stop_e = multiprocessing.Event()
 
-        cam_captures = os.path.join(self.img_path, camera_id)
+        # Directory name: id_name (sanitized)
+        safe_name = re.sub(r'[^\w\-_\. ]', '_', camera_config.get("name", "Unnamed"))
+        folder_name = f"{camera_id}_{safe_name}"
+        cam_captures = os.path.join(self.img_path, folder_name)
         os.makedirs(cam_captures, exist_ok=True)
 
         proc = CameraProcess(
@@ -63,6 +67,13 @@ class ProcessManager:
             detect_classes=camera_config.get("detect_classes", [0]),
             custom_model=camera_config.get("custom_model"),
         )
+        
+        # Initialize data collection state from config
+        if "data_collection" in camera_config:
+            dc_cfg = camera_config["data_collection"]
+            if hasattr(dc_cfg, 'dict'): dc_cfg = dc_cfg.dict()
+            proc.data_collection = dc_cfg
+
         proc.start()
 
         self.processes[camera_id] = proc
@@ -100,6 +111,16 @@ class ProcessManager:
             mapping.pop(camera_id, None)
 
         logger.info("Camera process stopped: %s", camera_id)
+
+    def get_capture_dir(self, camera_id: str) -> str:
+        """Returns the specific directory path for a camera, considering ID_NAME naming."""
+        config = self._camera_configs.get(camera_id)
+        if not config:
+            # Fallback for just ID
+            return os.path.join(self.img_path, camera_id)
+            
+        safe_name = re.sub(r'[^\w\-_\. ]', '_', config.get("name", "Unnamed"))
+        return os.path.join(self.img_path, f"{camera_id}_{safe_name}")
 
     def stop_all(self) -> None:
         for camera_id in list(self.processes):

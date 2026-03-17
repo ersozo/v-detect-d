@@ -61,6 +61,11 @@ class RTSPCapture:
             self._cap.release()
             self._cap = None
 
+    def get_fps(self) -> float:
+        if self._cap:
+            return self._cap.get(cv2.CAP_PROP_FPS)
+        return 0.0
+
     @staticmethod
     def test_connection(url: str, timeout: float = 5.0) -> dict:
         """Try opening the RTSP URL and return status + stream info."""

@@ -6,6 +6,13 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class DataCollectionConfig(BaseModel):
+    """Configuration for collecting raw frames or video for AI training."""
+    enabled: bool = False
+    mode: str = "frames"  # 'frames' or 'video'
+    interval: int = 5     # Every Nth frame
+
+
 class CameraConfig(BaseModel):
     id: str
     name: str
@@ -23,6 +30,7 @@ class CameraConfig(BaseModel):
     confidence: float = 0.5
     blur_faces: bool = False
     enabled: bool = True
+    data_collection: Optional[DataCollectionConfig] = None
     plc_outputs: Optional[list["CameraPLCOutput"]] = None
 
     def get_rtsp_url(self) -> str:
