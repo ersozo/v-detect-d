@@ -9,14 +9,16 @@ It captures RTSP camera feeds, runs YOLO26 inference (via OpenVINO), enforces co
 
 ## Design Principles
 
-| #   | Principle                             | Implementation                                                      |
-| --- | ------------------------------------- | ------------------------------------------------------------------- |
-| 1   | **Streaming ≠ Detection ≠ PLC**       | Three independent layers with no cross-coupling                     |
-| 2   | **Each camera = separate OS process** | `multiprocessing.Process` per camera for CPU isolation (no GIL)     |
-| 3   | **Backlog-free**                      | Leaky queues (`maxsize=1`) — always latest frame, never stale       |
-| 4   | **Multi-PLC & Many-to-Many**          | PLCManager drives multiple S7 connections with cross-mapping logic  |
-| 5   | **Native Desktop UI**                 | PySide6 (Qt) for high-performance rendering and localized control   |
-| 6   | **AI-Aware Data Collection**          | Dedicated pipeline for raw captures; auto-pauses AI to maximize FPS |
+| #   | Principle                             | Implementation                                                                  |
+| --- | ------------------------------------- | ------------------------------------------------------------------------------- |
+| 1   | **Streaming ≠ Detection ≠ PLC**       | Three independent layers with no cross-coupling                                 |
+| 2   | **Each camera = separate OS process** | `multiprocessing.Process` per camera for CPU isolation (no GIL)                 |
+| 3   | **Backlog-free**                      | Leaky queues (`maxsize=1`) — always latest frame, never stale                   |
+| 4   | **Multi-PLC & Many-to-Many**          | PLCManager drives multiple S7 connections with cross-mapping logic              |
+| 5   | **Native Desktop UI**                 | PySide6 (Qt) for high-performance rendering and localized control               |
+| 6   | **AI-Aware Data Collection**          | Dedicated pipeline for raw captures; auto-pauses AI to maximize FPS             |
+| 7   | **Privacy-First Cropping**            | Crop applied *after* AI inference — detection on full frame, UI view is cropped |
+| 8   | **Per-Camera Visual Alerts**          | Configurable alarm flash colors (Green/Red) in the dashboard grid               |
 
 ---
 
@@ -87,7 +89,9 @@ Detector.detect(frame, zones, confidence)
   │  returns: [{ x1, y1, x2, y2, confidence, zone_id, label }, ...]
   │
   ▼  Annotate: Draw boxes + Zone Polygons + Localized Labels
-Annotate → Raw Frame Bytes (JPEG)
+Annotate → Raw Frame Bytes
+  │
+  ├─► **Privacy Crop**: Applied here (if enabled) before JPEG encoding
   │
   ├──► frame_queue (leaky) → CameraWorker (QThread) → QImage → OpenGLVideoWidget
   │
@@ -121,6 +125,7 @@ desktop/
         ├── camera_form.py          Camera hardware & AI settings.
         ├── plc_form.py             Multi-PLC Manager & Mapping editor.
         ├── roi_form.py             Interactive polygon zone editor.
+        ├── crop_form.py            Visual crop selection (Privacy).
         └── data_collection_form.py Training data recording settings.
 
 backend/
@@ -166,6 +171,8 @@ A native PySide6 interface localized in Turkish.
 - **Stretched Rendering**: Uses high-performance rendering to eliminate black bars.
 - **Event Panel**: Live detection log with one-click snapshot viewing.
 - **ROI Editor**: Interactive polygon drawing tool for defining security zones.
+- **Privacy Crop**: Dedicated visual tool for limiting the visible stream area while preserving full-frame AI accuracy.
+- **Visual Feedback**: Real-time card flashing with user-defined colors (Green/Red) upon detection.
 
 ---
 

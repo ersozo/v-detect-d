@@ -201,6 +201,11 @@ class CameraProcess(multiprocessing.Process):
         stop_event: multiprocessing.Event,
         detect_classes: list[int] = [0],
         custom_model: str | None = None,
+        crop_enabled: bool = False,
+        crop_x: int = 0,
+        crop_y: int = 0,
+        crop_w: int = 0,
+        crop_h: int = 0,
     ):
         super().__init__(daemon=True, name=f"Camera-{camera_id}")
         self.camera_id = camera_id
@@ -214,6 +219,11 @@ class CameraProcess(multiprocessing.Process):
         self.img_path = img_path
         self.detect_classes = detect_classes
         self.custom_model = custom_model
+        self.crop_enabled = crop_enabled
+        self.crop_x = crop_x
+        self.crop_y = crop_y
+        self.crop_w = crop_w
+        self.crop_h = crop_h
         # IPC channels
         self.frame_queue = frame_queue
         self.event_queue = event_queue
@@ -332,6 +342,15 @@ class CameraProcess(multiprocessing.Process):
                     _draw_roi(display, zpoly, color=color, label=zname)
             else:
                 _draw_roi(display, roi_polygon)
+
+            # --- crop ---
+            if self.crop_enabled and self.crop_w > 0 and self.crop_h > 0:
+                fh, fw = display.shape[:2]
+                x1 = max(0, min(self.crop_x, fw - 1))
+                y1 = max(0, min(self.crop_y, fh - 1))
+                x2 = max(x1 + 1, min(x1 + self.crop_w, fw))
+                y2 = max(y1 + 1, min(y1 + self.crop_h, fh))
+                display = display[y1:y2, x1:x2]
 
             # --- encode ---
             quality_params = [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_quality]
@@ -482,6 +501,16 @@ class CameraProcess(multiprocessing.Process):
                         self.blur_faces = cmd["blur_faces"]
                     if "detect_classes" in cmd:
                         self.detect_classes = cmd["detect_classes"]
+                    if "crop_enabled" in cmd:
+                        self.crop_enabled = cmd["crop_enabled"]
+                    if "crop_x" in cmd:
+                        self.crop_x = cmd["crop_x"]
+                    if "crop_y" in cmd:
+                        self.crop_y = cmd["crop_y"]
+                    if "crop_w" in cmd:
+                        self.crop_w = cmd["crop_w"]
+                    if "crop_h" in cmd:
+                        self.crop_h = cmd["crop_h"]
 
                 elif action == "update_quality":
                     if "quality" in cmd:
@@ -494,14 +523,17 @@ class CameraProcess(multiprocessing.Process):
                 elif action == "get_frame":
                     frame = capture.read()
                     if frame is not None:
-                        if zone_data:
-                            for i, (zn, zs, zp, _) in enumerate(zone_data):
-                                c = ZONE_COLORS[i % len(ZONE_COLORS)]
-                                if zs == "danger":
-                                    c = (0, 0, 255)
-                                _draw_roi(frame, zp, color=c, label=zn)
-                        elif roi_polygon is not None:
-                            _draw_roi(frame, roi_polygon)
+                        frame = frame.copy()
+                        draw = cmd.get("draw", True)
+                        if draw:
+                            if zone_data:
+                                for i, (zn, zs, zp, _) in enumerate(zone_data):
+                                    c = ZONE_COLORS[i % len(ZONE_COLORS)]
+                                    if zs == "danger":
+                                        c = (0, 0, 255)
+                                    _draw_roi(frame, zp, color=c, label=zn)
+                            elif roi_polygon is not None:
+                                _draw_roi(frame, roi_polygon)
                         quality_params = [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_quality]
                         _, buf = cv2.imencode(".jpg", frame, quality_params)
                         self.response_queue.put(buf.tobytes())

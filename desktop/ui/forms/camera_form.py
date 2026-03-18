@@ -1,7 +1,7 @@
 import time
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
-    QLineEdit, QPushButton, QComboBox, QCheckBox, QMessageBox, QGroupBox, QSpinBox, 
+    QLineEdit, QPushButton, QComboBox, QCheckBox, QMessageBox, QGroupBox, QSpinBox,
     QDoubleSpinBox, QListWidget, QListWidgetItem
 )
 from PySide6.QtCore import Qt
@@ -11,7 +11,7 @@ class CameraFormDialog(QDialog):
     def __init__(self, parent=None, camera_id=None):
         super().__init__(parent)
         self.setWindowTitle("Kamera Ayarları")
-        self.setMinimumWidth(600)
+        self.setMinimumWidth(1050)
         self.camera_id = camera_id
         self.is_adding = camera_id is None
 
@@ -24,7 +24,7 @@ class CameraFormDialog(QDialog):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        # Three Column Layout
+        # Four Column Layout
         cols_layout = QHBoxLayout()
         layout.addLayout(cols_layout)
 
@@ -56,28 +56,21 @@ class CameraFormDialog(QDialog):
         conn_layout.addWidget(QLabel("RTSP Yolu:"), 5, 0)
         conn_layout.addWidget(self.stream_path_input, 5, 1)
         conn_layout.addWidget(self.enabled_check, 6, 0, 1, 2)
-
         cols_layout.addWidget(conn_group)
 
-        # Column 2: AI Group
+        # Column 2: AI Settings Group
         ai_group = QGroupBox("Yapay Zeka Ayarları")
         ai_layout = QGridLayout(ai_group)
-
         self.model_size_combo = QComboBox()
         self.model_size_combo.addItems(["n", "s", "m", "l", "x"])
-
         self.custom_model_input = QLineEdit()
         self.detect_classes_input = QLineEdit()
         self.detect_classes_input.setPlaceholderText("örn. 0,2,7")
-
         self.frame_skip_input = QSpinBox()
         self.frame_skip_input.setRange(0, 100)
-
         self.confidence_input = QDoubleSpinBox()
         self.confidence_input.setRange(0.01, 1.0)
         self.confidence_input.setSingleStep(0.05)
-
-        self.blur_faces_checkbox = QCheckBox("Yüzleri Bulanıklaştır")
 
         ai_layout.addWidget(QLabel("YOLO Model:"), 0, 0)
         ai_layout.addWidget(self.model_size_combo, 0, 1)
@@ -89,27 +82,68 @@ class CameraFormDialog(QDialog):
         ai_layout.addWidget(self.frame_skip_input, 3, 1)
         ai_layout.addWidget(QLabel("Güven:"), 4, 0)
         ai_layout.addWidget(self.confidence_input, 4, 1)
-        ai_layout.addWidget(self.blur_faces_checkbox, 5, 0, 1, 2)
-
         cols_layout.addWidget(ai_group)
 
-        # Column 3: PLC Group
+        # Column 3: Image Settings Group (Görüntü Ayarları)
+        img_group = QGroupBox("Görüntü Ayarları")
+        img_layout = QVBoxLayout(img_group)
+
+        # Alarm Flash Color
+        self.alarm_color_combo = QComboBox()
+        self.alarm_color_combo.addItem("Yeşil (Varsayılan)", "#10B981")
+        self.alarm_color_combo.addItem("Kırmızı", "#ce0e14")
+
+        flash_layout = QHBoxLayout()
+        flash_layout.addWidget(QLabel("Alarm Flash Rengi:"))
+        flash_layout.addWidget(self.alarm_color_combo)
+        img_layout.addLayout(flash_layout)
+
+        img_layout.addSpacing(10)
+
+        self.blur_faces_checkbox = QCheckBox("Yüzleri Bulanıklaştır")
+        img_layout.addWidget(self.blur_faces_checkbox)
+
+        img_layout.addSpacing(10)
+
+        crop_box = QGroupBox("Görüntü Kırpma (Gizlilik)")
+        crop_v = QVBoxLayout(crop_box)
+        self.crop_enabled_check = QCheckBox("Kırpmayı Etkinleştir")
+        crop_v.addWidget(self.crop_enabled_check)
+
+        crop_grid = QGridLayout()
+        self.crop_x_input = QSpinBox(); self.crop_x_input.setRange(0, 10000)
+        self.crop_y_input = QSpinBox(); self.crop_y_input.setRange(0, 10000)
+        self.crop_w_input = QSpinBox(); self.crop_w_input.setRange(0, 10000)
+        self.crop_h_input = QSpinBox(); self.crop_h_input.setRange(0, 10000)
+
+        crop_grid.addWidget(QLabel("X:"), 0, 0); crop_grid.addWidget(self.crop_x_input, 0, 1)
+        crop_grid.addWidget(QLabel("Y:"), 0, 2); crop_grid.addWidget(self.crop_y_input, 0, 3)
+        crop_grid.addWidget(QLabel("W:"), 1, 0); crop_grid.addWidget(self.crop_w_input, 1, 1)
+        crop_grid.addWidget(QLabel("H:"), 1, 2); crop_grid.addWidget(self.crop_h_input, 1, 3)
+        crop_v.addLayout(crop_grid)
+
+        self.visual_crop_btn = QPushButton("Görsel Olarak Seç")
+        self.visual_crop_btn.clicked.connect(self.open_crop_visualizer)
+        crop_v.addWidget(self.visual_crop_btn)
+
+        img_layout.addWidget(crop_box)
+        img_layout.addStretch()
+        cols_layout.addWidget(img_group)
+
+        # Column 4: PLC Settings Group
         plc_group = QGroupBox("PLC Ayarları")
         plc_layout = QVBoxLayout(plc_group)
-
         self.plc_list = QListWidget()
-        plc_layout.addWidget(QLabel("Alarm gönderilecek PLC'leri seçin:"))
+        plc_layout.addWidget(QLabel("Alarm seçilen PLC'lere gönderilir:"))
         plc_layout.addWidget(self.plc_list)
-
         cols_layout.addWidget(plc_group)
 
-        # Button box
+        # Bottom Buttons
         btn_layout = QHBoxLayout()
         save_btn = QPushButton("Kaydet")
         save_btn.clicked.connect(self.save)
         cancel_btn = QPushButton("İptal")
         cancel_btn.clicked.connect(self.reject)
-
         btn_layout.addStretch()
         btn_layout.addWidget(cancel_btn)
         btn_layout.addWidget(save_btn)
@@ -132,12 +166,21 @@ class CameraFormDialog(QDialog):
         self.confidence_input.setValue(float(d.get("confidence", 0.5)))
         self.blur_faces_checkbox.setChecked(bool(d.get("blur_faces", False)))
 
-        # Populate PLC checklist
+        alarm_c = d.get("alarm_color", "#10B981")
+        idx = self.alarm_color_combo.findData(alarm_c)
+        if idx >= 0:
+            self.alarm_color_combo.setCurrentIndex(idx)
+
+        self.crop_enabled_check.setChecked(bool(d.get("crop_enabled", False)))
+        self.crop_x_input.setValue(int(d.get("crop_x", 0)))
+        self.crop_y_input.setValue(int(d.get("crop_y", 0)))
+        self.crop_w_input.setValue(int(d.get("crop_w", 0)))
+        self.crop_h_input.setValue(int(d.get("crop_h", 0)))
+
+        # PLC checklist
         self.plc_list.clear()
         current_plc_outputs = d.get("plc_outputs", [])
-        # Extract PLC IDs from current outputs list
         mapped_plc_ids = [o.get("plc_id") for o in current_plc_outputs if o.get("plc_id")]
-        
         instances = AppState.plc_config.get("instances", {})
         for plc_id, plc_cfg in instances.items():
             item = QListWidgetItem(plc_cfg.get("name", plc_id))
@@ -150,15 +193,11 @@ class CameraFormDialog(QDialog):
     def save(self):
         try:
             req_id = self.camera_id or f"cam_{int(time.time()*1000)}"
-
             def parse_classes(text):
                 return [int(x.strip()) for x in text.split(",") if x.strip().isdigit()]
 
-            # Validation
-            if not self.ip_input.text().strip():
-                raise ValueError("IP Adresi boş olamaz.")
-            if not self.password_input.text().strip():
-                raise ValueError("Kamera parolası boş olamaz.")
+            if not self.ip_input.text().strip(): raise ValueError("IP Adresi boş olamaz.")
+            if not self.password_input.text().strip(): raise ValueError("Kamera parolası boş olamaz.")
 
             cam_data = {
                 "id": req_id,
@@ -173,39 +212,39 @@ class CameraFormDialog(QDialog):
                 "confidence": self.confidence_input.value(),
                 "blur_faces": self.blur_faces_checkbox.isChecked(),
                 "enabled": self.enabled_check.isChecked(),
+                "crop_enabled": self.crop_enabled_check.isChecked(),
+                "crop_x": self.crop_x_input.value(),
+                "crop_y": self.crop_y_input.value(),
+                "crop_w": self.crop_w_input.value(),
+                "crop_h": self.crop_h_input.value(),
+                "alarm_color": self.alarm_color_combo.currentData(),
                 "detect_classes": parse_classes(self.detect_classes_input.text()),
                 "custom_model": self.custom_model_input.text() or None,
-                "plc_outputs": [], # Rebuilt below
+                "plc_outputs": [],
                 "roi": self.existing_data.get("roi", None),
                 "zones": self.existing_data.get("zones", None)
             }
 
-            # Rebuild PLC mappings while preserving existing detail (db/byte/bit)
             existing_outputs = {o["plc_id"]: o for o in self.existing_data.get("plc_outputs", []) if "plc_id" in o}
             for i in range(self.plc_list.count()):
                 item = self.plc_list.item(i)
                 if item.checkState() == Qt.Checked:
                     plc_id = item.data(Qt.UserRole)
-                    if plc_id in existing_outputs:
-                        cam_data["plc_outputs"].append(existing_outputs[plc_id])
-                    else:
-                        cam_data["plc_outputs"].append({"plc_id": plc_id})
+                    if plc_id in existing_outputs: cam_data["plc_outputs"].append(existing_outputs[plc_id])
+                    else: cam_data["plc_outputs"].append({"plc_id": plc_id})
 
             from backend.models import CameraConfig
             cfg = CameraConfig(**cam_data)
             cam_data["url"] = cfg.get_rtsp_url()
-
             AppState.cameras[req_id] = cam_data
 
             from backend.config import save_cameras
             save_cameras(AppState.cameras)
             AppState.plc_mgr.set_cameras(AppState.cameras)
 
-            # Hot-reload / restart handling
             if self.is_adding:
                 if cam_data["enabled"]:
                     AppState.process_mgr.start_camera(cam_data)
-                    AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
             else:
                 old = self.existing_data
                 was_enabled = old.get("enabled", True)
@@ -225,7 +264,6 @@ class CameraFormDialog(QDialog):
                         old.get("model_size") != cam_data["model_size"],
                         old.get("custom_model") != cam_data["custom_model"],
                     ])
-
                     if needs_restart:
                         AppState.process_mgr.stop_camera(req_id)
                         AppState.process_mgr.start_camera(cam_data)
@@ -236,11 +274,27 @@ class CameraFormDialog(QDialog):
                             "frame_skip": cam_data["frame_skip"],
                             "blur_faces": cam_data["blur_faces"],
                             "detect_classes": cam_data["detect_classes"],
+                            "crop_enabled": cam_data["crop_enabled"],
+                            "crop_x": cam_data["crop_x"],
+                            "crop_y": cam_data["crop_y"],
+                            "crop_w": cam_data["crop_w"],
+                            "crop_h": cam_data["crop_h"],
                         })
-                
-                # Sync PLC queues in all cases after change
-                AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
-
+            AppState.plc_mgr.set_event_queues(AppState.process_mgr.event_queues)
             self.accept()
         except Exception as e:
             QMessageBox.warning(self, "Validation Error", str(e))
+
+    def open_crop_visualizer(self):
+        if self.is_adding:
+            QMessageBox.information(self, "Bilgi", "Kırpma için önce kamerayı kaydedin.")
+            return
+        from desktop.ui.forms.crop_form import CropEditorDialog
+        cur = (self.crop_x_input.value(), self.crop_y_input.value(), self.crop_w_input.value(), self.crop_h_input.value())
+        dialog = CropEditorDialog(self, camera_id=self.camera_id, current_rect=cur)
+        if dialog.exec():
+            x, y, w, h = dialog.result_rect
+            self.crop_x_input.setValue(x)
+            self.crop_y_input.setValue(y)
+            self.crop_w_input.setValue(w)
+            self.crop_h_input.setValue(h)

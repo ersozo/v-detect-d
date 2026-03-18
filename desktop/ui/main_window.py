@@ -161,10 +161,10 @@ class MainWindow(QMainWindow):
             # Check if any are connected (or show first one)
             active = any(statuses.values())
             if active:
-                self.plc_status_label.setText("PLC: AKTİF")
+                self.plc_status_label.setText("PLC: online")
                 self.plc_status_label.setStyleSheet("background-color: #065f46; padding: 4px 8px; border-radius: 4px; color: #34d399; font-weight: bold;")
             else:
-                self.plc_status_label.setText("PLC: PASİF")
+                self.plc_status_label.setText("PLC: offline")
                 self.plc_status_label.setStyleSheet("background-color: #7f1d1d; padding: 4px 8px; border-radius: 4px; color: #f87171; font-weight: bold;")
 
     def clear_ui_events(self):

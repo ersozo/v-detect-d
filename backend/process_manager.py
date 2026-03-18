@@ -66,6 +66,11 @@ class ProcessManager:
             stop_event=stop_e,
             detect_classes=camera_config.get("detect_classes", [0]),
             custom_model=camera_config.get("custom_model"),
+            crop_enabled=camera_config.get("crop_enabled", False),
+            crop_x=camera_config.get("crop_x", 0),
+            crop_y=camera_config.get("crop_y", 0),
+            crop_w=camera_config.get("crop_w", 0),
+            crop_h=camera_config.get("crop_h", 0),
         )
         
         # Initialize data collection state from config

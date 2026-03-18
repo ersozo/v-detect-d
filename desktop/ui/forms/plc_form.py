@@ -189,12 +189,12 @@ class PLCManagerDialog(QDialog):
         btn_layout = QHBoxLayout()
         add_btn = QPushButton("PLC Ekle")
         add_btn.clicked.connect(self.add_plc)
-        
+
         edit_btn = QPushButton("Düzenle")
         edit_btn.clicked.connect(self.edit_plc)
 
         del_btn = QPushButton("Sil")
-        del_btn.setStyleSheet("background-color: #ef4444; color: white;")
+        # del_btn.setStyleSheet("background-color: #ef4444; color: white;")
         del_btn.clicked.connect(self.delete_plc)
 
         close_btn = QPushButton("Kapat")
@@ -236,10 +236,10 @@ class PLCManagerDialog(QDialog):
         if not item:
             return
         plc_id = item.data(Qt.UserRole)
-        
+
         # Confirm
         name = AppState.plc_config["instances"][plc_id].get("name", plc_id)
-        reply = QMessageBox.question(self, "Uyarı", f"'{name}' PLC'sini silmek istediğinizden emin misiniz?", 
+        reply = QMessageBox.question(self, "Uyarı", f"'{name}' PLC'sini silmek istediğinizden emin misiniz?",
                                      QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             del AppState.plc_config["instances"][plc_id]
@@ -247,7 +247,7 @@ class PLCManagerDialog(QDialog):
                 # Pick another one or None
                 ids = list(AppState.plc_config["instances"].keys())
                 AppState.plc_config["default_plc_id"] = ids[0] if ids else None
-            
+
             from backend.config import save_plc_config
             save_plc_config(AppState.plc_config)
             AppState.plc_mgr.set_config(AppState.plc_config)

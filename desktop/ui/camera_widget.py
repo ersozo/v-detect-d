@@ -105,7 +105,6 @@ class CameraCard(QWidget):
         self.delete_btn = QPushButton("Sil")
         self.delete_btn.clicked.connect(self.delete_camera)
         self.delete_btn.setFixedWidth(60)
-        # self.delete_btn.setStyleSheet("background-color: #ef4444; color: white;")
 
         self.toggle_btn = QPushButton()
         self.toggle_btn.setFixedWidth(80)
@@ -212,8 +211,9 @@ class CameraCard(QWidget):
     def set_alarm_visual(self, active: bool):
         """Changes the card background to signal a detection/alarm."""
         if active:
-            # Flash Yellow
-            self.setStyleSheet("CameraCard { background-color: #FEFF01; border: 2px solid #10b981; border-radius: 6px; }")
+            cam_data = AppState.cameras.get(self.camera_id, {})
+            color = cam_data.get("alarm_color", "#10B981")
+            self.setStyleSheet(f"CameraCard {{ background-color: {color}; border: 2px solid {color}; border-radius: 6px; }}")
         else:
             # Revert to default
             self.setStyleSheet("CameraCard { background-color: #111827; border: 1px solid #374151; border-radius: 6px; }")

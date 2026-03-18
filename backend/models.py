@@ -30,6 +30,12 @@ class CameraConfig(BaseModel):
     confidence: float = 0.5
     blur_faces: bool = False
     enabled: bool = True
+    crop_enabled: bool = False
+    crop_x: int = 0
+    crop_y: int = 0
+    crop_w: int = 0
+    crop_h: int = 0
+    alarm_color: str = "#10B981"
     data_collection: Optional[DataCollectionConfig] = None
     plc_outputs: Optional[list["CameraPLCOutput"]] = None
 
