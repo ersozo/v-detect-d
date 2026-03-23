@@ -206,7 +206,7 @@ class CameraCard(QWidget):
             self.record_btn.setStyleSheet("background-color: #ef4444; color: white; font-weight: bold;")
         else:
             self.record_btn.setText("Kaydet")
-            self.record_btn.setStyleSheet("background-color: #374151; color: #d1d5db;")
+            self.record_btn.setStyleSheet("")
 
     def set_alarm_visual(self, active: bool):
         """Changes the card background to signal a detection/alarm."""
