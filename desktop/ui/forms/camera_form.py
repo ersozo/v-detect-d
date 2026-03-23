@@ -2,9 +2,10 @@ import time
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel,
     QLineEdit, QPushButton, QComboBox, QCheckBox, QMessageBox, QGroupBox, QSpinBox,
-    QDoubleSpinBox, QListWidget, QListWidgetItem
+    QDoubleSpinBox, QListWidget, QListWidgetItem, QColorDialog
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from desktop.core.app_state import AppState
 
 class CameraFormDialog(QDialog):
@@ -88,14 +89,17 @@ class CameraFormDialog(QDialog):
         img_group = QGroupBox("Görüntü Ayarları")
         img_layout = QVBoxLayout(img_group)
 
-        # Alarm Flash Color
-        self.alarm_color_combo = QComboBox()
-        self.alarm_color_combo.addItem("Yeşil (Varsayılan)", "#10B981")
-        self.alarm_color_combo.addItem("Kırmızı", "#ce0e14")
+        # Alarm Flash Color Picker
+        self.current_alarm_color = "#10B981"
+        self.alarm_color_btn = QPushButton()
+        self.alarm_color_btn.setFixedWidth(80)
+        self.alarm_color_btn.setCursor(Qt.PointingHandCursor)
+        self.alarm_color_btn.clicked.connect(self.pick_alarm_color)
 
         flash_layout = QHBoxLayout()
         flash_layout.addWidget(QLabel("Alarm Flash Rengi:"))
-        flash_layout.addWidget(self.alarm_color_combo)
+        flash_layout.addWidget(self.alarm_color_btn)
+        flash_layout.addStretch()
         img_layout.addLayout(flash_layout)
 
         img_layout.addSpacing(10)
@@ -166,10 +170,8 @@ class CameraFormDialog(QDialog):
         self.confidence_input.setValue(float(d.get("confidence", 0.5)))
         self.blur_faces_checkbox.setChecked(bool(d.get("blur_faces", False)))
 
-        alarm_c = d.get("alarm_color", "#10B981")
-        idx = self.alarm_color_combo.findData(alarm_c)
-        if idx >= 0:
-            self.alarm_color_combo.setCurrentIndex(idx)
+        self.current_alarm_color = d.get("alarm_color", "#10B981")
+        self.update_color_button()
 
         self.crop_enabled_check.setChecked(bool(d.get("crop_enabled", False)))
         self.crop_x_input.setValue(int(d.get("crop_x", 0)))
@@ -217,7 +219,7 @@ class CameraFormDialog(QDialog):
                 "crop_y": self.crop_y_input.value(),
                 "crop_w": self.crop_w_input.value(),
                 "crop_h": self.crop_h_input.value(),
-                "alarm_color": self.alarm_color_combo.currentData(),
+                "alarm_color": self.current_alarm_color,
                 "detect_classes": parse_classes(self.detect_classes_input.text()),
                 "custom_model": self.custom_model_input.text() or None,
                 "plc_outputs": [],
@@ -298,3 +300,30 @@ class CameraFormDialog(QDialog):
             self.crop_y_input.setValue(y)
             self.crop_w_input.setValue(w)
             self.crop_h_input.setValue(h)
+
+    def pick_alarm_color(self):
+        color = QColorDialog.getColor(QColor(self.current_alarm_color), self, "Alarm Rengi Seç")
+        if color.isValid():
+            self.current_alarm_color = color.name().upper()
+            self.update_color_button()
+
+    def update_color_button(self):
+        # Contrasting text color based on background luminance
+        c = QColor(self.current_alarm_color)
+        lum = (0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()) / 255
+        text_color = "#000000" if lum > 0.5 else "#FFFFFF"
+        
+        self.alarm_color_btn.setText(self.current_alarm_color)
+        self.alarm_color_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.current_alarm_color};
+                color: {text_color};
+                border: 1px solid #374151;
+                border-radius: 4px;
+                font-weight: bold;
+                padding: 4px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid #50e3c2;
+            }}
+        """)

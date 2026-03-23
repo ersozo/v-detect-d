@@ -203,20 +203,23 @@ class CameraCard(QWidget):
         dc = cam_data.get("data_collection") or {}
         if dc.get("enabled"):
             self.record_btn.setText("Kaydı Durdur")
-            # self.record_btn.setStyleSheet("background-color: #ef4444; color: white; font-weight: bold;")
+            self.record_btn.setStyleSheet("background-color: #ef4444; color: white; font-weight: bold;")
         else:
             self.record_btn.setText("Kaydet")
-            # self.record_btn.setStyleSheet("background-color: #374151; color: #d1d5db;")
+            self.record_btn.setStyleSheet("background-color: #374151; color: #d1d5db;")
 
     def set_alarm_visual(self, active: bool):
         """Changes the card background to signal a detection/alarm."""
+        cam_data = AppState.cameras.get(self.camera_id, {})
         if active:
-            cam_data = AppState.cameras.get(self.camera_id, {})
             color = cam_data.get("alarm_color", "#10B981")
             self.setStyleSheet(f"CameraCard {{ background-color: {color}; border: 2px solid {color}; border-radius: 6px; }}")
+            self.name_label.setText("")
         else:
             # Revert to default
             self.setStyleSheet("CameraCard { background-color: #111827; border: 1px solid #374151; border-radius: 6px; }")
+            name = cam_data.get("name", f"Kamera {self.camera_id}")
+            self.name_label.setText(name)
 
     def toggle_camera(self):
         cam_data = AppState.cameras.get(self.camera_id, {})

@@ -237,6 +237,8 @@ class CameraProcess(multiprocessing.Process):
             "interval": 5
         }
         self.video_writer = None
+        self.current_session_dir = None
+        self.log = None
 
     # ------------------------------------------------------------------
     # Main loop (runs in child process)
@@ -252,7 +254,8 @@ class CameraProcess(multiprocessing.Process):
             level=logging.INFO,
             format=f"[%(levelname)s] [cam:{self.camera_id}] %(message)s",
         )
-        log = logging.getLogger(f"camera.{self.camera_id}")
+        self.log = logging.getLogger(f"camera.{self.camera_id}")
+        log = self.log # Compatibility with old references in run()
 
         from capture import RTSPCapture
         from detector import Detector
@@ -268,6 +271,9 @@ class CameraProcess(multiprocessing.Process):
         zone_data = _compute_zones(self.zones)
 
         os.makedirs(self.img_path, exist_ok=True)
+        
+        if self.data_collection.get("enabled"):
+            self._start_new_session()
 
         frame_count = 0
         last_detections: list[dict] = []
@@ -391,12 +397,8 @@ class CameraProcess(multiprocessing.Process):
                 except Exception:
                     pass
 
-            # --- Data Collection (Raw frames or video for training) ---
-            if self.data_collection.get("enabled"):
+            if self.data_collection.get("enabled") and self.current_session_dir:
                 mode = self.data_collection.get("mode", "frames")
-                train_dir = os.path.join(self.img_path, "training")
-                if not os.path.exists(train_dir):
-                    os.makedirs(train_dir, exist_ok=True)
 
                 if mode == "frames":
                     # Release video writer if it was active
@@ -409,7 +411,7 @@ class CameraProcess(multiprocessing.Process):
                         try:
                             ts_ms = int(time.time() * 1000)
                             cv2.imwrite(
-                                os.path.join(train_dir, f"raw_{ts_ms}.jpg"),
+                                os.path.join(self.current_session_dir, f"raw_{ts_ms}.jpg"),
                                 frame,
                             )
                         except Exception: pass
@@ -419,7 +421,7 @@ class CameraProcess(multiprocessing.Process):
                         # Initialize VideoWriter
                         ts_ms = int(time.time() * 1000)
                         # Switch to AVI/XVID for better stability on Windows
-                        v_path = os.path.join(train_dir, f"rec_{ts_ms}.avi")
+                        v_path = os.path.join(self.current_session_dir, f"rec_{ts_ms}.avi")
                         # MJPG is widely supported on Windows without extra codecs
                         fourcc = cv2.VideoWriter_fourcc(*'MJPG')
                         h, w = frame.shape[:2]
@@ -430,10 +432,10 @@ class CameraProcess(multiprocessing.Process):
                             
                         self.video_writer = cv2.VideoWriter(v_path, fourcc, fps, (w, h))
                         if not self.video_writer.isOpened():
-                            log.error("Failed to open VideoWriter for path: %s", v_path)
+                            if self.log: self.log.error("Failed to open VideoWriter for path: %s", v_path)
                             self.video_writer = None
                         else:
-                            log.info("Started video recording: %s at %d FPS (%dx%d)", v_path, fps, w, h)
+                            if self.log: self.log.info("Started video recording: %s at %d FPS (%dx%d)", v_path, fps, w, h)
                     
                     if self.video_writer:
                         self.video_writer.write(frame)
@@ -457,6 +459,14 @@ class CameraProcess(multiprocessing.Process):
             
         capture.release()
         log.info("Process stopped")
+
+    def _start_new_session(self):
+        ts_ms = int(time.time() * 1000)
+        session_name = f"session_{ts_ms}"
+        self.current_session_dir = os.path.join(self.img_path, "training", session_name)
+        os.makedirs(self.current_session_dir, exist_ok=True)
+        if self.log:
+            self.log.info("Started new data collection session: %s", self.current_session_dir)
 
     # ------------------------------------------------------------------
     # Control command handler
@@ -518,7 +528,17 @@ class CameraProcess(multiprocessing.Process):
 
                 elif action == "update_data_collection":
                     if "config" in cmd:
-                        self.data_collection = cmd["config"]
+                        new_config = cmd["config"]
+                        was_enabled = self.data_collection.get("enabled", False)
+                        is_enabled = new_config.get("enabled", False)
+
+                        if is_enabled and not was_enabled:
+                            self._start_new_session()
+                        elif not is_enabled and was_enabled:
+                            if self.log: self.log.info("Session ended.")
+                            self.current_session_dir = None
+
+                        self.data_collection = new_config
 
                 elif action == "get_frame":
                     frame = capture.read()
