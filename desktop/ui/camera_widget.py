@@ -176,7 +176,7 @@ class CameraCard(QWidget):
         # Update record button state
         dc = cam_data.get("data_collection") or {}
         if dc.get("enabled"):
-            self.record_btn.setText("Kaydı Durdur")
+            self.record_btn.setText("Durdur")
             self.record_btn.setStyleSheet("background-color: #ef4444; color: white; font-weight: bold;")
         else:
             self.record_btn.setText("Kaydet")
