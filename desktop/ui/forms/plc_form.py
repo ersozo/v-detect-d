@@ -91,11 +91,14 @@ class PLCFormDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def populate(self):
-        # Merge existing data with PLCInstance defaults
-        defaults = PLCInstance(id="tmp", name="Yeni PLC").model_dump()
-        d = {**defaults, **self.existing_data}
+        # Merge defaults, prioritizing non-None values from existing_data
+        default_obj = PLCInstance(id="tmp", name="Yeni PLC")
+        d = default_obj.model_dump()
+        for k, v in self.existing_data.items():
+            if v is not None:
+                d[k] = v
 
-        self.name_input.setText(d.get("name"))
+        self.name_input.setText(d.get("name") or "")
         self.enabled_check.setChecked(d.get("enabled"))
         self.ip_input.setText(d.get("ip"))
 

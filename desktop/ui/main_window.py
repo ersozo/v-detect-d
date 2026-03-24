@@ -4,8 +4,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QPushButton, QHBoxLayout, QListWidget, QListWidgetItem, QFrame,
     QMessageBox
 )
-from PySide6.QtCore import Qt, QTimer, Slot, QDateTime
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QTimer, Slot, QDateTime, QUrl
+from PySide6.QtGui import QColor, QDesktopServices
 
 from desktop.core.app_state import AppState
 from desktop.ui.camera_widget import CameraCard
@@ -174,7 +174,7 @@ class MainWindow(QMainWindow):
 
     def open_captures_folder(self):
         if os.path.exists(CAPTURES_DIR):
-            os.startfile(CAPTURES_DIR)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(CAPTURES_DIR))
         else:
             QMessageBox.information(self, "Bilgi", "Henüz kaydedilmiş bir görsel bulunamadı.")
 
@@ -212,7 +212,7 @@ class MainWindow(QMainWindow):
                     filepath = old_filepath
 
         if os.path.exists(filepath):
-            os.startfile(filepath)
+            QDesktopServices.openUrl(QUrl.fromLocalFile(filepath))
         else:
             QMessageBox.warning(self, "Hata", f"Görsel bulunamadı: {filename}")
 

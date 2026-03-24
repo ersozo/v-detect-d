@@ -160,11 +160,14 @@ class CameraFormDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def populate(self):
-        # Merge existing data with CameraConfig defaults
-        defaults = CameraConfig(id="tmp", name="Yeni Kamera", ip="0.0.0.0").model_dump()
-        d = {**defaults, **self.existing_data}
+        # Merge defaults, prioritizing non-None values from existing_data
+        default_obj = CameraConfig(id="tmp", name="Yeni Kamera", ip="0.0.0.0")
+        d = default_obj.model_dump()
+        for k, v in self.existing_data.items():
+            if v is not None:
+                d[k] = v
 
-        self.name_input.setText(d.get("name"))
+        self.name_input.setText(d.get("name") or "")
         self.ip_input.setText(d.get("ip"))
         self.port_input.setValue(int(d.get("port")))
         self.username_input.setText(d.get("username"))
@@ -190,8 +193,8 @@ class CameraFormDialog(QDialog):
 
         # PLC checklist
         self.plc_list.clear()
-        current_plc_outputs = d.get("plc_outputs", [])
-        mapped_plc_ids = [o.get("plc_id") for o in current_plc_outputs if o.get("plc_id")]
+        current_plc_outputs = d.get("plc_outputs") or []
+        mapped_plc_ids = [o.get("plc_id") for o in current_plc_outputs if isinstance(o, dict) and o.get("plc_id")]
         instances = AppState.plc_config.get("instances", {})
         for plc_id, plc_cfg in instances.items():
             item = QListWidgetItem(plc_cfg.get("name", plc_id))
@@ -236,7 +239,8 @@ class CameraFormDialog(QDialog):
                 "zones": self.existing_data.get("zones", None)
             }
 
-            existing_outputs = {o["plc_id"]: o for o in self.existing_data.get("plc_outputs", []) if "plc_id" in o}
+            existing_data_outputs = self.existing_data.get("plc_outputs") or []
+            existing_outputs = {o["plc_id"]: o for o in existing_data_outputs if isinstance(o, dict) and "plc_id" in o}
             for i in range(self.plc_list.count()):
                 item = self.plc_list.item(i)
                 if item.checkState() == Qt.Checked:
