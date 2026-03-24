@@ -68,21 +68,7 @@ def update_plc(
     set_bit(global_db, config["lifebit_byte"], config["lifebit_bit"], lifebit_value)
     set_bit(global_db, config["detection_byte"], config["detection_bit"], detection_active)
 
-    # 2. Per-camera signals from PLC config (Group mappings)
-    mappings = config.get("camera_mappings", {})
-    if mappings and camera_states:
-        for cam_id, mapping in mappings.items():
-            if not isinstance(mapping, dict):
-                continue
-            val = camera_states.get(cam_id, False)
-            target_db = mapping.get("db_number") or global_db
-            byte_idx = mapping.get("byte_idx")
-            bit_idx = mapping.get("bit_idx")
-            
-            if byte_idx is not None and bit_idx is not None:
-                set_bit(target_db, byte_idx, bit_idx, val)
-
-    # 3. Per-camera signals from Camera config (Many-to-Many explicit outputs)
+    # 2. Per-camera signals from Camera config (Many-to-Many explicit outputs)
     if cameras_cfg and camera_states:
         for cam_id, cam_data in cameras_cfg.items():
             val = camera_states.get(cam_id, False)

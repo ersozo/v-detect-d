@@ -76,13 +76,6 @@ class PLCFormDialog(QDialog):
 
         layout.addWidget(sig_group)
 
-        # Camera Mapping Group (Many-to-Many)
-        map_group = QGroupBox("Kamera Eşleştirme")
-        map_layout = QVBoxLayout(map_group)
-        self.cam_list = QListWidget()
-        map_layout.addWidget(QLabel("Bu PLC'yi tetikleyecek kameraları seçin:"))
-        map_layout.addWidget(self.cam_list)
-        layout.addWidget(map_group)
 
         # Actions
         btn_layout = QHBoxLayout()
@@ -111,18 +104,6 @@ class PLCFormDialog(QDialog):
         self.det_byte_input.setText(str(d.get("detection_byte", 0)))
         self.det_bit_input.setText(str(d.get("detection_bit", 0)))
 
-        # Populate camera list
-        self.cam_list.clear()
-        mappings = d.get("camera_mappings", {})
-        for cam_id, cam_cfg in AppState.cameras.items():
-            cam_name = cam_cfg.get("name", cam_id)
-            item = QListWidgetItem(cam_name)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            # Set initial check state
-            check_state = Qt.Checked if cam_id in mappings else Qt.Unchecked
-            item.setCheckState(check_state)
-            item.setData(Qt.UserRole, cam_id)
-            self.cam_list.addItem(item)
 
     def save(self):
         try:
@@ -138,20 +119,8 @@ class PLCFormDialog(QDialog):
                 "lifebit_byte": int(self.lb_byte_input.text() or 0),
                 "lifebit_bit": int(self.lb_bit_input.text() or 0),
                 "detection_byte": int(self.det_byte_input.text() or 0),
-                "detection_bit": int(self.det_bit_input.text() or 0),
-                "camera_mappings": {} # Rebuilt below
+                "detection_bit": int(self.det_bit_input.text() or 0)
             }
-
-            # Rebuild mappings while preserving existing detail
-            existing_mappings = self.existing_data.get("camera_mappings", {})
-            for i in range(self.cam_list.count()):
-                item = self.cam_list.item(i)
-                if item.checkState() == Qt.Checked:
-                    cam_id = item.data(Qt.UserRole)
-                    if cam_id in existing_mappings:
-                        data["camera_mappings"][cam_id] = existing_mappings[cam_id]
-                    else:
-                        data["camera_mappings"][cam_id] = {} # Empty dict satisfies PLCCameraMapping with Optionals
 
             if "instances" not in AppState.plc_config:
                 AppState.plc_config["instances"] = {}

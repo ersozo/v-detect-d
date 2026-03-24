@@ -1,10 +1,12 @@
-- [DONE] PLC-kamera kayıt buglar
-- [DONE] Kamera Başlat/Durdur
-- [DONE] PLC ekleme
+- [DONE] PLC, camera record bugs
+- [DONE] camera start/stop
+- [DONE] PLC add/remove
 - [DONE] camera form IP no and pwd required
-- [DONE] Saving video or frames for custom model training (data collection)
-- [DONE] Color pick for alarm style
-- [DONE] Session management for data collection
-- [DONE] Dynamic style for record button in data collection.
-- [DONE] Session management for detection images for saving in directories.
-
+- [DONE] saving video or frames for custom model training (data collection)
+- [DONE] color pick for alarm style
+- [DONE] session management for data collection
+- [DONE] dynamic style for record button in data collection.
+- [DONE] session management for detection images for saving in directories.
+- [DONE] move roi selection button from camera widget to AI settings sub panel in camera settings
+- [DONE] rename detection folder name from id_name to name
+- [DONE] remove legacy code and files for pure desktop app

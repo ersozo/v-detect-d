@@ -94,10 +94,6 @@ class CameraCard(QWidget):
         self.name_label = QLabel(self.config_data.get("name", f"Kamera {camera_id}"))
         self.name_label.setStyleSheet("font-weight: bold; font-size: 16px;")
 
-        self.roi_btn = QPushButton("Bölge Seç")
-        self.roi_btn.clicked.connect(self.open_roi)
-        self.roi_btn.setFixedWidth(100)
-
         self.edit_btn = QPushButton("Kamera Düzenle")
         self.edit_btn.clicked.connect(self.open_edit)
         self.edit_btn.setFixedWidth(100)
@@ -124,7 +120,6 @@ class CameraCard(QWidget):
         self.header_layout.addWidget(self.toggle_btn)
         self.header_layout.addWidget(self.record_settings_btn)
         self.header_layout.addWidget(self.record_btn)
-        self.header_layout.addWidget(self.roi_btn)
         self.header_layout.addWidget(self.edit_btn)
         self.header_layout.addWidget(self.delete_btn)
         self.layout.addLayout(self.header_layout)
@@ -138,25 +133,6 @@ class CameraCard(QWidget):
         self.worker = None
         self.update_ui_state()
 
-        self.update_roi_btn_text()
-
-    def update_roi_btn_text(self):
-        cam_data = AppState.cameras.get(self.camera_id, {})
-        has_roi = bool(cam_data.get("roi"))
-        has_zones = bool(cam_data.get("zones"))
-
-        if has_roi or has_zones:
-            self.roi_btn.setText("Bölge Düzenle")
-        else:
-            self.roi_btn.setText("Bölge Seç")
-
-    def open_roi(self):
-        from desktop.ui.forms.roi_form import RoiEditorDialog
-        # Pass the main window as parent to keep dialog on top properly
-        dialog = RoiEditorDialog(self.window(), camera_id=self.camera_id)
-        if dialog.exec():
-            # Refresh text if zones were saved
-            self.update_roi_btn_text()
 
     def open_edit(self):
         from desktop.ui.forms.camera_form import CameraFormDialog
@@ -172,7 +148,6 @@ class CameraCard(QWidget):
             self.toggle_btn.setText("Durdur")
             self.toggle_btn.setStyleSheet("background-color: #ce8106; color: white; font-weight: bold;")
             self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #10b981;") # Greenish
-            self.roi_btn.setEnabled(True)
             self.record_btn.setEnabled(True)
             self.record_settings_btn.setEnabled(True)
 
@@ -187,7 +162,6 @@ class CameraCard(QWidget):
             self.toggle_btn.setText("Başlat")
             self.toggle_btn.setStyleSheet("background-color: #10b981; color: white; font-weight: bold;")
             self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #6b7280;") # Gray
-            self.roi_btn.setEnabled(False)
             self.record_btn.setEnabled(False)
             self.record_settings_btn.setEnabled(False)
 

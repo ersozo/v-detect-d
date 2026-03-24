@@ -198,10 +198,7 @@ class PLCManager:
 
                             mapped_cam_ids = set()
 
-                            # Type 1: PLC-side mappings
-                            mapped_cam_ids.update(plc_cfg.get("camera_mappings", {}).keys())
-
-                            # Type 2: Camera-side outputs
+                            # Camera-side outputs (Many-to-Many)
                             for cam_id, cam_cfg in self._cameras.items():
                                 outputs = cam_cfg.get("plc_outputs") or []
                                 if any(o.get("plc_id") == plc_id for o in outputs):

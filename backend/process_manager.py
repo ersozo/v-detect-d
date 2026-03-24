@@ -43,10 +43,28 @@ class ProcessManager:
         response_q = multiprocessing.Queue(maxsize=1)
         stop_e = multiprocessing.Event()
 
-        # Directory name: id_name (sanitized)
+        # Sanitized name for directory
         safe_name = re.sub(r'[^\w\-_\. ]', '_', camera_config.get("name", "Unnamed"))
-        folder_name = f"{camera_id}_{safe_name}"
-        cam_captures = os.path.join(self.img_path, folder_name)
+        
+        old_folder_name = f"{camera_id}_{safe_name}"
+        old_cam_captures = os.path.join(self.img_path, old_folder_name)
+        new_cam_captures = os.path.join(self.img_path, safe_name)
+
+        # Migration logic
+        if os.path.exists(old_cam_captures) and not os.path.exists(new_cam_captures):
+            try:
+                os.rename(old_cam_captures, new_cam_captures)
+                logger.info("Folder migrated: %s -> %s", old_folder_name, safe_name)
+            except Exception as e:
+                logger.warning("Could not migrate folder: %s", e)
+        elif not os.path.exists(new_cam_captures):
+            # Also check old-old fallback if any
+            old_fallback = os.path.join(self.img_path, camera_id)
+            if os.path.exists(old_fallback):
+                try: os.rename(old_fallback, new_cam_captures)
+                except: pass
+
+        cam_captures = new_cam_captures
         os.makedirs(cam_captures, exist_ok=True)
 
         proc = CameraProcess(
@@ -125,7 +143,7 @@ class ProcessManager:
             return os.path.join(self.img_path, camera_id)
 
         safe_name = re.sub(r'[^\w\-_\. ]', '_', config.get("name", "Unnamed"))
-        return os.path.join(self.img_path, f"{camera_id}_{safe_name}")
+        return os.path.join(self.img_path, safe_name)
 
     def stop_all(self) -> None:
         for camera_id in list(self.processes):

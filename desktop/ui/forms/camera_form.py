@@ -83,6 +83,11 @@ class CameraFormDialog(QDialog):
         ai_layout.addWidget(self.frame_skip_input, 3, 1)
         ai_layout.addWidget(QLabel("Güven:"), 4, 0)
         ai_layout.addWidget(self.confidence_input, 4, 1)
+
+        self.roi_btn = QPushButton("Bölge Seç")
+        self.roi_btn.clicked.connect(self.open_roi_editor)
+        ai_layout.addWidget(self.roi_btn, 5, 0, 1, 2)
+
         cols_layout.addWidget(ai_group)
 
         # Column 3: Image Settings Group (Görüntü Ayarları)
@@ -169,9 +174,9 @@ class CameraFormDialog(QDialog):
         self.frame_skip_input.setValue(int(d.get("frame_skip", 3)))
         self.confidence_input.setValue(float(d.get("confidence", 0.5)))
         self.blur_faces_checkbox.setChecked(bool(d.get("blur_faces", False)))
-
         self.current_alarm_color = d.get("alarm_color", "#10B981")
         self.update_color_button()
+        self.update_roi_btn_text()
 
         self.crop_enabled_check.setChecked(bool(d.get("crop_enabled", False)))
         self.crop_x_input.setValue(int(d.get("crop_x", 0)))
@@ -286,6 +291,27 @@ class CameraFormDialog(QDialog):
             self.accept()
         except Exception as e:
             QMessageBox.warning(self, "Validation Error", str(e))
+
+    def update_roi_btn_text(self):
+        d = self.existing_data
+        has_roi = bool(d.get("roi"))
+        has_zones = bool(d.get("zones"))
+        if has_roi or has_zones:
+            self.roi_btn.setText("Bölge Düzenle")
+        else:
+            self.roi_btn.setText("Bölge Seç")
+
+    def open_roi_editor(self):
+        if self.is_adding:
+            QMessageBox.information(self, "Bilgi", "Bölge seçimi için önce kamerayı kaydedin.")
+            return
+        from desktop.ui.forms.roi_form import RoiEditorDialog
+        dialog = RoiEditorDialog(self, camera_id=self.camera_id)
+        if dialog.exec():
+            # Refresh from AppState since RoiEditorDialog saves there
+            if self.camera_id in AppState.cameras:
+                self.existing_data = AppState.cameras[self.camera_id]
+                self.update_roi_btn_text()
 
     def open_crop_visualizer(self):
         if self.is_adding:

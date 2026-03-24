@@ -9,16 +9,16 @@ It captures RTSP camera feeds, runs YOLO26 inference (via OpenVINO), enforces co
 
 ## Design Principles
 
-| #   | Principle                             | Implementation                                                                  |
-| --- | ------------------------------------- | ------------------------------------------------------------------------------- |
-| 1   | **Streaming ≠ Detection ≠ PLC**       | Three independent layers with no cross-coupling                                 |
-| 2   | **Each camera = separate OS process** | `multiprocessing.Process` per camera for CPU isolation (no GIL)                 |
-| 3   | **Backlog-free**                      | Leaky queues (`maxsize=1`) — always latest frame, never stale                   |
-| 4   | **Multi-PLC & Many-to-Many**          | PLCManager drives multiple S7 connections with cross-mapping logic              |
-| 5   | **Native Desktop UI**                 | PySide6 (Qt) for high-performance rendering and localized control               |
-| 6   | **AI-Aware Data Collection**          | Dedicated pipeline for raw captures; auto-pauses AI to maximize FPS             |
-| 7   | **Privacy-First Cropping**            | Crop applied *after* AI inference — detection on full frame, UI view is cropped |
-| 8   | **Per-Camera Visual Alerts**          | Configurable alarm flash colors (Green/Red) in the dashboard grid               |
+| #   | Principle                             | Implementation                                                                    |
+| --- | ------------------------------------- | --------------------------------------------------------------------------------- |
+| 1   | **Streaming ≠ Detection ≠ PLC**       | Three independent layers with no cross-coupling                                   |
+| 2   | **Each camera = separate OS process** | `multiprocessing.Process` per camera for CPU isolation (no GIL)                   |
+| 3   | **Backlog-free**                      | Leaky queues (`maxsize=1`) — always latest frame, never stale                     |
+| 4   | **Many-to-Many PLC**                  | Multi-PLC driving logic where each camera explicitly defines multiple bit outputs |
+| 5   | **Native Desktop UI**                 | PySide6 (Qt) for high-performance rendering and localized control                 |
+| 6   | **AI-Aware Data Collection**          | Dedicated pipeline for raw captures; auto-pauses AI to maximize FPS               |
+| 7   | **Privacy-First Cropping**            | Crop applied *after* AI inference — detection on full frame, UI view is cropped   |
+| 8   | **Per-Camera Visual Alerts**          | Configurable alarm flash colors (Green/Red) in the dashboard grid                 |
 
 ---
 
@@ -131,7 +131,7 @@ desktop/
 backend/
 ├── camera_process.py     The "engine" loop. Handles AI, capture, and data collection.
 ├── detector.py           AI logic — YOLO inference and ROI polygon filtering.
-├── plc_manager.py        Orchestrates multi-PLC connectivity and many-to-many logic.
+├── plc_manager.py        Orchestrates many-to-many PLC event routing.
 ├── plc_client.py         Snap7 client implementation with Lifebit/IO support.
 ├── process_manager.py    Handles OS-level lifecycle and IPC command routing.
 ├── event_store.py        SQLite interface for detection history and auditing.
@@ -140,9 +140,9 @@ backend/
 
 data/                     Persistent storage.
 ├── cameras_db.json       Camera definitions and Data Collection configs.
-├── plcs_db.json          Multi-PLC database (instances and mappings).
+├── plcs_db.json          Multi-PLC database instances.
 ├── events.db             SQLite detection log.
-└── captures/             📁 organized as {id}_{name}/
+└── captures/             📁 organized by camera name ({name})
     ├── snapshots/        Detection-triggered images.
     └── training/         Raw data collected for custom models (JPG/AVI).
 ```
@@ -154,9 +154,10 @@ data/                     Persistent storage.
 ### 1. Unified Camera Engine (`camera_process.py`)
 A heavy-duty asynchronous loop that manages per-camera hardware resources. It supports **hot-reloading** of configurations (sensitivity, ROI, zones) without process restarts via the IPC `control_queue`.
 
-### 2. Multi-PLC Orchestrator (`plc_manager.py`)
-A centralized pool that manages multiple industrial connections simultaneously.
-- **Many-to-Many Routing**: Multiple cameras can report to a single PLC bit; one camera can trigger multiple separate PLCs.
+### 2. Many-to-Many PLC Orchestrator (`plc_manager.py`)
+A centralized pool that manages multiple industrial connections simultaneously using a decentralized mapping strategy.
+- **Camera-Owned Outputs**: Each camera configuration defines its own list of PLC targets (IP, DB, Byte, Bit). This replaces legacy centralized PLC-side mapping.
+- **Many-to-Many Routing**: One camera can trigger multiple PLCs; one PLC can receive signals from multiple cameras.
 - **Fault Tolerance**: Monitors "Lifebit" status for every configured PLC independently.
 - **Independent Clients**: A failure in one PLC connection does not block others.
 

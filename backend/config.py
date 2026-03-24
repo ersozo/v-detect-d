@@ -37,7 +37,6 @@ DEFAULT_PLC_CONFIG = {
     "lifebit_bit": 0,
     "detection_byte": 6,
     "detection_bit": 0,
-    "camera_mappings": {},
 }
 
 
@@ -107,7 +106,7 @@ def save_cameras(cameras: dict[str, dict]) -> None:
 def load_plc_config() -> dict:
     """Loads the multi-PLC database. Migrates from single config if needed."""
     if not os.path.exists(PLCS_DB_FILE):
-        return _migrate_from_single_config()
+        return {"instances": {}, "default_plc_id": None}
 
     try:
         with open(PLCS_DB_FILE, "r", encoding="utf-8") as f:
@@ -129,31 +128,3 @@ def save_plc_config(config: dict) -> dict:
     return config
 
 
-def _migrate_from_single_config() -> dict:
-    """Helper to migrate existing single PLC config to the new structure."""
-    import uuid
-
-    config_to_migrate = dict(DEFAULT_PLC_CONFIG)
-    if os.path.exists(PLC_CONFIG_FILE):
-        try:
-            with open(PLC_CONFIG_FILE, "r", encoding="utf-8") as f:
-                saved = json.load(f)
-            config_to_migrate = {**DEFAULT_PLC_CONFIG, **saved}
-            logger.info("Migrated existing plc_config.json to new multi-PLC format")
-        except Exception as e:
-            logger.error("Error reading single plc_config.json for migration: %s", e)
-
-    plc_id = "default_" + str(uuid.uuid4())[:8]
-    new_db = {
-        "instances": {
-            plc_id: {
-                "id": plc_id,
-                "name": "Default PLC",
-                **config_to_migrate
-            }
-        },
-        "default_plc_id": plc_id
-    }
-
-    save_plc_config(new_db)
-    return new_db
