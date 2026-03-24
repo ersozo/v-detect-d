@@ -94,7 +94,7 @@ class CameraCard(QWidget):
         self.name_label = QLabel(self.config_data.get("name", f"Kamera {camera_id}"))
         self.name_label.setStyleSheet("font-weight: bold; font-size: 16px;")
 
-        self.edit_btn = QPushButton("Kamera Düzenle")
+        self.edit_btn = QPushButton("Düzenle")
         self.edit_btn.clicked.connect(self.open_edit)
         self.edit_btn.setFixedWidth(100)
 
@@ -205,10 +205,6 @@ class CameraCard(QWidget):
 
         # Perspective: Start or Stop process
         if new_state:
-            # Re-generate URL in case it changed (though usually handled in Edit)
-            from backend.models import CameraConfig
-            cfg = CameraConfig(**cam_data)
-            cam_data["url"] = cfg.get_rtsp_url()
             AppState.process_mgr.start_camera(cam_data)
         else:
             AppState.process_mgr.stop_camera(self.camera_id)

@@ -27,45 +27,9 @@ PLCS_DB_FILE = os.path.join(DATA_DIR, "plcs_db.json")
 CAPTURES_DIR = os.path.join(DATA_DIR, "captures")
 EVENTS_DB_PATH = os.path.join(DATA_DIR, "events.db")
 
-DEFAULT_PLC_CONFIG = {
-    "enabled": False,
-    "ip": "192.168.0.50",
-    "rack": 0,
-    "slot": 1,
-    "db_number": 38,
-    "lifebit_byte": 4,
-    "lifebit_bit": 0,
-    "detection_byte": 6,
-    "detection_bit": 0,
-}
-
-
-def _build_rtsp_url(cam_data: dict) -> str:
-    username = urllib.parse.quote(cam_data.get("username", ""))
-    password = urllib.parse.quote(cam_data.get("password", ""))
-    ip = cam_data.get("ip", "")
-    port = cam_data.get("port", 554)
-    stream_path = cam_data.get("stream_path", "")
-
-    if username and password:
-        auth = f"{username}:{password}@"
-    elif username:
-        auth = f"{username}@"
-    else:
-        auth = ""
-
-    path = (
-        stream_path
-        if stream_path.startswith("/")
-        else f"/{stream_path}" if stream_path else ""
-    )
-    return f"rtsp://{auth}{ip}:{port}{path}"
-
-
 # --- Camera config ---
-
-
 def load_cameras() -> dict[str, dict]:
+    from backend.models import CameraConfig
     if not os.path.exists(CAMERAS_DB_FILE):
         logger.info("No cameras database found, starting fresh")
         return {}
@@ -76,8 +40,11 @@ def load_cameras() -> dict[str, dict]:
 
         cameras: dict[str, dict] = {}
         for cam_id, cam_data in data.items():
-            cam_data["url"] = _build_rtsp_url(cam_data)
-            cameras[cam_id] = cam_data
+            # Validate and apply defaults via Pydantic
+            cfg = CameraConfig(**cam_data)
+            dump = cfg.model_dump()
+            dump["url"] = cfg.get_rtsp_url()
+            cameras[cam_id] = dump
 
         logger.info("Loaded %d cameras from database", len(cameras))
         return cameras
@@ -101,20 +68,20 @@ def save_cameras(cameras: dict[str, dict]) -> None:
 
 
 # --- PLC config (Multi-PLC support) ---
-
-
 def load_plc_config() -> dict:
-    """Loads the multi-PLC database. Migrates from single config if needed."""
+    """Loads the multi-PLC database. Validates via PLCConfig model."""
+    from backend.models import PLCConfig
     if not os.path.exists(PLCS_DB_FILE):
-        return {"instances": {}, "default_plc_id": None}
+        return PLCConfig().model_dump()
 
     try:
         with open(PLCS_DB_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return data
+        # Validate and apply defaults
+        return PLCConfig(**data).model_dump()
     except Exception as e:
         logger.error("Error loading plcs_db.json: %s", e)
-        return {"instances": {}, "default_plc_id": None}
+        return PLCConfig().model_dump()
 
 
 def save_plc_config(config: dict) -> dict:

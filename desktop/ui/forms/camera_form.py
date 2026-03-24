@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from desktop.core.app_state import AppState
+from backend.models import CameraConfig
 
 class CameraFormDialog(QDialog):
     def __init__(self, parent=None, camera_id=None):
@@ -159,30 +160,33 @@ class CameraFormDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def populate(self):
-        d = self.existing_data
-        self.name_input.setText(d.get("name", ""))
-        self.ip_input.setText(d.get("ip", ""))
-        self.port_input.setValue(int(d.get("port", 554)))
-        self.username_input.setText(d.get("username", "admin"))
-        self.password_input.setText(d.get("password", ""))
-        self.stream_path_input.setText(d.get("stream_path", ""))
-        self.enabled_check.setChecked(bool(d.get("enabled", True)))
+        # Merge existing data with CameraConfig defaults
+        defaults = CameraConfig(id="tmp", name="Yeni Kamera", ip="0.0.0.0").model_dump()
+        d = {**defaults, **self.existing_data}
 
-        self.model_size_combo.setCurrentText(d.get("model_size", "n"))
-        self.custom_model_input.setText(d.get("custom_model", ""))
-        self.detect_classes_input.setText(",".join(map(str, d.get("detect_classes", [0]))))
-        self.frame_skip_input.setValue(int(d.get("frame_skip", 3)))
-        self.confidence_input.setValue(float(d.get("confidence", 0.5)))
-        self.blur_faces_checkbox.setChecked(bool(d.get("blur_faces", False)))
-        self.current_alarm_color = d.get("alarm_color", "#10B981")
+        self.name_input.setText(d.get("name"))
+        self.ip_input.setText(d.get("ip"))
+        self.port_input.setValue(int(d.get("port")))
+        self.username_input.setText(d.get("username"))
+        self.password_input.setText(d.get("password"))
+        self.stream_path_input.setText(d.get("stream_path"))
+        self.enabled_check.setChecked(bool(d.get("enabled")))
+
+        self.model_size_combo.setCurrentText(d.get("model_size"))
+        self.custom_model_input.setText(d.get("custom_model") or "")
+        self.detect_classes_input.setText(",".join(map(str, d.get("detect_classes"))))
+        self.frame_skip_input.setValue(int(d.get("frame_skip")))
+        self.confidence_input.setValue(float(d.get("confidence")))
+        self.blur_faces_checkbox.setChecked(bool(d.get("blur_faces")))
+        self.current_alarm_color = d.get("alarm_color")
         self.update_color_button()
         self.update_roi_btn_text()
 
-        self.crop_enabled_check.setChecked(bool(d.get("crop_enabled", False)))
-        self.crop_x_input.setValue(int(d.get("crop_x", 0)))
-        self.crop_y_input.setValue(int(d.get("crop_y", 0)))
-        self.crop_w_input.setValue(int(d.get("crop_w", 0)))
-        self.crop_h_input.setValue(int(d.get("crop_h", 0)))
+        self.crop_enabled_check.setChecked(bool(d.get("crop_enabled")))
+        self.crop_x_input.setValue(int(d.get("crop_x")))
+        self.crop_y_input.setValue(int(d.get("crop_y")))
+        self.crop_w_input.setValue(int(d.get("crop_w")))
+        self.crop_h_input.setValue(int(d.get("crop_h")))
 
         # PLC checklist
         self.plc_list.clear()
@@ -240,8 +244,9 @@ class CameraFormDialog(QDialog):
                     if plc_id in existing_outputs: cam_data["plc_outputs"].append(existing_outputs[plc_id])
                     else: cam_data["plc_outputs"].append({"plc_id": plc_id})
 
-            from backend.models import CameraConfig
+            # Validate and generate URL via Pydantic model
             cfg = CameraConfig(**cam_data)
+            cam_data = cfg.model_dump()
             cam_data["url"] = cfg.get_rtsp_url()
             AppState.cameras[req_id] = cam_data
 

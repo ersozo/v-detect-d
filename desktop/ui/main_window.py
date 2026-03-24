@@ -12,6 +12,7 @@ from desktop.ui.camera_widget import CameraCard
 
 from desktop.ui.forms.camera_form import CameraFormDialog
 from desktop.ui.forms.plc_form import PLCFormDialog, PLCManagerDialog
+from backend.config import CAPTURES_DIR
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -172,8 +173,6 @@ class MainWindow(QMainWindow):
         self.event_list.clear()
 
     def open_captures_folder(self):
-        from backend.config import CAPTURES_DIR
-        import os
         if os.path.exists(CAPTURES_DIR):
             os.startfile(CAPTURES_DIR)
         else:
@@ -190,7 +189,6 @@ class MainWindow(QMainWindow):
         ts = data.get("ts")
         cam_id = data.get("cam_id")
 
-        import os
         filename = f"{int(ts)}.jpg"
 
         # New pattern: ID_NAME (resolved via manager)
@@ -209,7 +207,6 @@ class MainWindow(QMainWindow):
             
             # Fallback for old captures: just ID (backwards compatibility)
             if not found:
-                from backend.config import CAPTURES_DIR
                 old_filepath = os.path.join(CAPTURES_DIR, cam_id, filename)
                 if os.path.exists(old_filepath):
                     filepath = old_filepath

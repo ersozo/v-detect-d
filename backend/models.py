@@ -100,14 +100,14 @@ class PLCInstance(BaseModel):
     id: str
     name: str
     enabled: bool = False
-    ip: str = "192.168.0.50"
+    ip: str = "192.168.0.1"
     rack: int = 0
     slot: int = 1
-    db_number: int = 38
-    lifebit_byte: int = 4
+    db_number: int = 20
+    lifebit_byte: int = 0
     lifebit_bit: int = 0
-    detection_byte: int = 6
-    detection_bit: int = 0
+    detection_byte: int = 0
+    detection_bit: int = 1
     # Map of camera_id -> mapping for this specific PLC
     camera_mappings: dict[str, PLCCameraMapping] = {}
 

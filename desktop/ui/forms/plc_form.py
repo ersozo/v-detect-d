@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 from desktop.core.app_state import AppState
+from backend.models import PLCInstance
 
 class PLCFormDialog(QDialog):
     def __init__(self, parent=None, plc_id=None):
@@ -90,19 +91,22 @@ class PLCFormDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def populate(self):
-        d = self.existing_data
-        self.name_input.setText(d.get("name", "New PLC"))
-        self.enabled_check.setChecked(d.get("enabled", True))
-        self.ip_input.setText(d.get("ip", "192.168.0.50"))
+        # Merge existing data with PLCInstance defaults
+        defaults = PLCInstance(id="tmp", name="Yeni PLC").model_dump()
+        d = {**defaults, **self.existing_data}
 
-        self.rack_input.setText(str(d.get("rack", 0)))
-        self.slot_input.setText(str(d.get("slot", 1)))
-        self.db_input.setText(str(d.get("db_number", 0)))
+        self.name_input.setText(d.get("name"))
+        self.enabled_check.setChecked(d.get("enabled"))
+        self.ip_input.setText(d.get("ip"))
 
-        self.lb_byte_input.setText(str(d.get("lifebit_byte", 0)))
-        self.lb_bit_input.setText(str(d.get("lifebit_bit", 0)))
-        self.det_byte_input.setText(str(d.get("detection_byte", 0)))
-        self.det_bit_input.setText(str(d.get("detection_bit", 0)))
+        self.rack_input.setText(str(d.get("rack")))
+        self.slot_input.setText(str(d.get("slot")))
+        self.db_input.setText(str(d.get("db_number")))
+
+        self.lb_byte_input.setText(str(d.get("lifebit_byte")))
+        self.lb_bit_input.setText(str(d.get("lifebit_bit")))
+        self.det_byte_input.setText(str(d.get("detection_byte")))
+        self.det_bit_input.setText(str(d.get("detection_bit")))
 
 
     def save(self):
@@ -122,10 +126,13 @@ class PLCFormDialog(QDialog):
                 "detection_bit": int(self.det_bit_input.text() or 0)
             }
 
+            # Validate with Pydantic model
+            plc_obj = PLCInstance(**data)
+            
             if "instances" not in AppState.plc_config:
                 AppState.plc_config["instances"] = {}
 
-            AppState.plc_config["instances"][new_id] = data
+            AppState.plc_config["instances"][new_id] = plc_obj.model_dump()
 
             if not AppState.plc_config.get("default_plc_id"):
                 AppState.plc_config["default_plc_id"] = new_id
