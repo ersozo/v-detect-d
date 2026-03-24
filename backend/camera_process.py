@@ -273,7 +273,7 @@ class CameraProcess(multiprocessing.Process):
 
         os.makedirs(self.img_path, exist_ok=True)
 
-        if self.data_collection.get("enabled"):
+        if self.data_collection and self.data_collection.get("enabled"):
             self._start_new_session()
 
         frame_count = 0
@@ -295,7 +295,7 @@ class CameraProcess(multiprocessing.Process):
 
             # --- detect (respecting frame_skip and data_collection) ---
             # Default behavior: Disable detection when collecting data to save CPU
-            is_collecting = self.data_collection.get("enabled", False)
+            is_collecting = self.data_collection.get("enabled", False) if self.data_collection else False
 
             should_detect = (not is_collecting) and (
                 self.frame_skip == 0
@@ -401,7 +401,7 @@ class CameraProcess(multiprocessing.Process):
                 except Exception:
                     pass
 
-            if self.data_collection.get("enabled") and self.current_session_dir:
+            if self.data_collection and self.data_collection.get("enabled") and self.current_session_dir:
                 mode = self.data_collection.get("mode", "frames")
 
                 if mode == "frames":
@@ -533,7 +533,7 @@ class CameraProcess(multiprocessing.Process):
                 elif action == "update_data_collection":
                     if "config" in cmd:
                         new_config = cmd["config"]
-                        was_enabled = self.data_collection.get("enabled", False)
+                        was_enabled = self.data_collection.get("enabled", False) if self.data_collection else False
                         is_enabled = new_config.get("enabled", False)
 
                         if is_enabled and not was_enabled:

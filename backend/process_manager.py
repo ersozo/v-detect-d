@@ -92,9 +92,10 @@ class ProcessManager:
         )
 
         # Initialize data collection state from config
-        if "data_collection" in camera_config:
-            dc_cfg = camera_config["data_collection"]
-            if hasattr(dc_cfg, 'dict'): dc_cfg = dc_cfg.dict()
+        dc_cfg = camera_config.get("data_collection")
+        if dc_cfg is not None:
+            if hasattr(dc_cfg, 'model_dump'): dc_cfg = dc_cfg.model_dump()
+            elif hasattr(dc_cfg, 'dict'): dc_cfg = dc_cfg.dict()
             proc.data_collection = dc_cfg
 
         proc.start()

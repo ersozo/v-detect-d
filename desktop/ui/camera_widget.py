@@ -96,11 +96,11 @@ class CameraCard(QWidget):
 
         self.edit_btn = QPushButton("Düzenle")
         self.edit_btn.clicked.connect(self.open_edit)
-        self.edit_btn.setFixedWidth(100)
+        self.edit_btn.setFixedWidth(80)
 
         self.delete_btn = QPushButton("Sil")
         self.delete_btn.clicked.connect(self.delete_camera)
-        self.delete_btn.setFixedWidth(60)
+        self.delete_btn.setFixedWidth(80)
 
         self.toggle_btn = QPushButton()
         self.toggle_btn.setFixedWidth(80)
