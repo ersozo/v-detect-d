@@ -72,7 +72,7 @@ class ProcessManager:
             crop_w=camera_config.get("crop_w", 0),
             crop_h=camera_config.get("crop_h", 0),
         )
-        
+
         # Initialize data collection state from config
         if "data_collection" in camera_config:
             dc_cfg = camera_config["data_collection"]
@@ -123,7 +123,7 @@ class ProcessManager:
         if not config:
             # Fallback for just ID
             return os.path.join(self.img_path, camera_id)
-            
+
         safe_name = re.sub(r'[^\w\-_\. ]', '_', config.get("name", "Unnamed"))
         return os.path.join(self.img_path, f"{camera_id}_{safe_name}")
 

@@ -3,3 +3,8 @@
 - [DONE] PLC ekleme
 - [DONE] camera form IP no and pwd required
 - [DONE] Saving video or frames for custom model training (data collection)
+- [DONE] Color pick for alarm style
+- [DONE] Session management for data collection
+- [DONE] Dynamic style for record button in data collection.
+- [DONE] Session management for detection images for saving in directories.
+

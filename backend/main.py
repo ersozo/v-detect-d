@@ -700,34 +700,46 @@ async def get_reports():
         reports = []
         if not os.path.exists(CAPTURES_DIR):
             return reports
-        for entry in os.scandir(CAPTURES_DIR):
-            if entry.is_file() and entry.name.endswith(".jpg"):
-                try:
-                    ts = int(entry.name.split(".")[0])
-                    reports.append({
-                        "id": entry.name,
-                        "camera_id": None,
-                        "timestamp": ts,
-                        "image_url": f"/captures/{entry.name}",
-                    })
-                except ValueError:
+
+        for root, dirs, files in os.walk(CAPTURES_DIR):
+            # Skip the training directory used for data collection
+            if "training" in dirs:
+                dirs.remove("training")
+
+            for f in files:
+                if not f.endswith(".jpg"):
                     continue
-            elif entry.is_dir():
-                cam_id = entry.name
-                cam_dir = entry.path
-                for f in os.listdir(cam_dir):
-                    if not f.endswith(".jpg"):
-                        continue
-                    try:
-                        ts = int(f.split(".")[0])
-                        reports.append({
-                            "id": f"{cam_id}/{f}",
-                            "camera_id": cam_id,
-                            "timestamp": ts,
-                            "image_url": f"/captures/{cam_id}/{f}",
-                        })
-                    except ValueError:
-                        continue
+
+                full_path = os.path.join(root, f)
+                # Compute path relative to CAPTURES_DIR (e.g., "cam1/det_123/456.jpg")
+                rel_path = os.path.relpath(full_path, CAPTURES_DIR)
+                rel_path_posix = rel_path.replace("\\", "/")
+                parts = rel_path_posix.split("/")
+
+                # camera_id is always the first directory level if it exists
+                cam_id = parts[0] if len(parts) > 1 else None
+
+                try:
+                    # Attempt to extract timestamp from filename
+                    ts_str = f.split(".")[0]
+                    if ts_str.isdigit():
+                        ts = int(ts_str)
+                        # Filestamps are usually in seconds, but check for MS
+                        if ts > 2e9: # definitely MS
+                           ts = ts / 1000.0
+                    else:
+                        ts = os.path.getmtime(full_path)
+
+                    reports.append({
+                        "id": rel_path_posix,
+                        "camera_id": cam_id,
+                        "timestamp": ts,
+                        "image_url": f"/captures/{rel_path_posix}",
+                    })
+                except Exception:
+                    continue
+
+        # Sort by timestamp, newest first
         reports.sort(key=lambda x: x["timestamp"], reverse=True)
         return reports
 
@@ -752,11 +764,21 @@ async def delete_all_reports():
     count = 0
     if not os.path.exists(CAPTURES_DIR):
         return {"status": "success", "deleted": 0}
-    for root, _dirs, files in os.walk(CAPTURES_DIR):
+    for root, _dirs, files in os.walk(CAPTURES_DIR, topdown=False):
         for f in files:
             if f.endswith(".jpg"):
-                os.remove(os.path.join(root, f))
-                count += 1
+                try:
+                    os.remove(os.path.join(root, f))
+                    count += 1
+                except Exception:
+                    pass
+        # Clean up empty subdirectories (except CAPTURES_DIR itself)
+        if root != CAPTURES_DIR:
+            try:
+                if not os.listdir(root):
+                    os.rmdir(root)
+            except Exception:
+                pass
     return {"status": "success", "deleted": count}
 
 

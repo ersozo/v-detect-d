@@ -15,6 +15,7 @@ import multiprocessing
 import os
 import sys
 import time
+from datetime import datetime
 from queue import Empty, Full
 
 import cv2
@@ -77,7 +78,7 @@ def _draw_detections(
         if blur_faces:
             _blur_face_region(frame, x1, y1, x2, y2)
 
-        cv2.rectangle(frame, (x1, y1), (x2, y2), BBOX_COLOR, 6)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), BBOX_COLOR, 3)
         cls_id = det.get("class_id", 0)
 
         if class_names and cls_id in class_names:
@@ -271,7 +272,7 @@ class CameraProcess(multiprocessing.Process):
         zone_data = _compute_zones(self.zones)
 
         os.makedirs(self.img_path, exist_ok=True)
-        
+
         if self.data_collection.get("enabled"):
             self._start_new_session()
 
@@ -295,7 +296,7 @@ class CameraProcess(multiprocessing.Process):
             # --- detect (respecting frame_skip and data_collection) ---
             # Default behavior: Disable detection when collecting data to save CPU
             is_collecting = self.data_collection.get("enabled", False)
-            
+
             should_detect = (not is_collecting) and (
                 self.frame_skip == 0
                 or frame_count % (self.frame_skip + 1) == 0
@@ -390,8 +391,11 @@ class CameraProcess(multiprocessing.Process):
             if detection_active and should_detect and now - last_save_ts >= 1.0:
                 last_save_ts = now
                 try:
+                    date_str = datetime.fromtimestamp(now).strftime("%y.%m.%d")
+                    save_dir = os.path.join(self.img_path, "detections", date_str)
+                    os.makedirs(save_dir, exist_ok=True)
                     cv2.imwrite(
-                        os.path.join(self.img_path, f"{int(now)}.jpg"),
+                        os.path.join(save_dir, f"{int(now)}.jpg"),
                         display,
                     )
                 except Exception:
@@ -415,7 +419,7 @@ class CameraProcess(multiprocessing.Process):
                                 frame,
                             )
                         except Exception: pass
-                
+
                 elif mode == "video":
                     if self.video_writer is None:
                         # Initialize VideoWriter
@@ -427,16 +431,16 @@ class CameraProcess(multiprocessing.Process):
                         h, w = frame.shape[:2]
                         # Try to get real FPS from capture, else default to 20
                         fps = capture.get_fps()
-                        if fps is None or fps <= 0 or fps > 120: 
+                        if fps is None or fps <= 0 or fps > 120:
                             fps = 20.0
-                            
+
                         self.video_writer = cv2.VideoWriter(v_path, fourcc, fps, (w, h))
                         if not self.video_writer.isOpened():
                             if self.log: self.log.error("Failed to open VideoWriter for path: %s", v_path)
                             self.video_writer = None
                         else:
                             if self.log: self.log.info("Started video recording: %s at %d FPS (%dx%d)", v_path, fps, w, h)
-                    
+
                     if self.video_writer:
                         self.video_writer.write(frame)
             else:
@@ -456,7 +460,7 @@ class CameraProcess(multiprocessing.Process):
         if self.video_writer:
             self.video_writer.release()
             self.video_writer = None
-            
+
         capture.release()
         log.info("Process stopped")
 

@@ -1,7 +1,8 @@
 import os
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QGridLayout, QLabel,
-    QScrollArea, QPushButton, QHBoxLayout, QListWidget, QListWidgetItem, QFrame
+    QScrollArea, QPushButton, QHBoxLayout, QListWidget, QListWidgetItem, QFrame,
+    QMessageBox
 )
 from PySide6.QtCore import Qt, QTimer, Slot, QDateTime
 from PySide6.QtGui import QColor
@@ -196,12 +197,22 @@ class MainWindow(QMainWindow):
         folder_path = AppState.process_mgr.get_capture_dir(cam_id)
         filepath = os.path.join(folder_path, filename)
 
-        # Fallback for old captures: just ID
+        # If not in base folder, search recursively (for new session folders)
         if not os.path.exists(filepath):
-            from backend.config import CAPTURES_DIR
-            old_filepath = os.path.join(CAPTURES_DIR, cam_id, filename)
-            if os.path.exists(old_filepath):
-                filepath = old_filepath
+            found = False
+            if os.path.exists(folder_path):
+                for root, dirs, files in os.walk(folder_path):
+                    if filename in files:
+                        filepath = os.path.join(root, filename)
+                        found = True
+                        break
+            
+            # Fallback for old captures: just ID (backwards compatibility)
+            if not found:
+                from backend.config import CAPTURES_DIR
+                old_filepath = os.path.join(CAPTURES_DIR, cam_id, filename)
+                if os.path.exists(old_filepath):
+                    filepath = old_filepath
 
         if os.path.exists(filepath):
             os.startfile(filepath)
