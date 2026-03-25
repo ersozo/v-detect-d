@@ -86,9 +86,10 @@ class PLCManager:
 
     async def run(self) -> None:
         """Long-running background task — call as ``asyncio.create_task``."""
+        from version import VERSION
         self._running = True
         interval = 1.0 / self.UPDATE_HZ
-        logger.info("Multi-PLC Manager started (%d Hz)", self.UPDATE_HZ)
+        logger.info(f"Multi-PLC Manager started (v{VERSION}) (%d Hz)", self.UPDATE_HZ)
 
         # To prevent flickering alerts, we track "When did we last see a detection?"
         OFF_DELAY_SECONDS = 0.8

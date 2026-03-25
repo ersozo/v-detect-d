@@ -258,10 +258,11 @@ class CameraProcess(multiprocessing.Process):
         self.log = logging.getLogger(f"camera.{self.camera_id}")
         log = self.log # Compatibility with old references in run()
 
+        from version import VERSION
         from capture import RTSPCapture
         from detector import Detector
 
-        log.info("Process started – %s", self.rtsp_url)
+        log.info(f"Process started (v{VERSION}) – %s", self.rtsp_url)
 
         capture = RTSPCapture(self.rtsp_url)
         model_path = self.custom_model if self.custom_model else self.model_size

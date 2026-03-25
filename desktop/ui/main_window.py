@@ -13,11 +13,12 @@ from desktop.ui.camera_widget import CameraCard
 from desktop.ui.forms.camera_form import CameraFormDialog
 from desktop.ui.forms.plc_form import PLCFormDialog, PLCManagerDialog
 from backend.config import CAPTURES_DIR
+from backend.version import VERSION
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("V-Detect Kontrol Paneli")
+        self.setWindowTitle(f"V-Detect Kontrol Paneli - v{VERSION}")
         self.resize(1280, 800)
 
         # Central Layout

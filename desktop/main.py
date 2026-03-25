@@ -8,11 +8,11 @@ from PySide6.QtWidgets import QApplication
 base_dir = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, base_dir)
 sys.path.insert(1, os.path.join(base_dir, "backend"))
-
-# Initialize core states before UI is imported
+from backend.version import VERSION
 from desktop.core.app_state import AppState
 
 async def main_loop():
+    print(f"Starting V-Detect Application v{VERSION}...")
     try:
         AppState.init()
 
