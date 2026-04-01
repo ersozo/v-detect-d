@@ -9,16 +9,18 @@ It captures RTSP camera feeds, runs YOLO26 inference (via OpenVINO), enforces co
 
 ## Design Principles
 
-| #   | Principle                             | Implementation                                                                    |
-| --- | ------------------------------------- | --------------------------------------------------------------------------------- |
-| 1   | **Streaming ≠ Detection ≠ PLC**       | Three independent layers with no cross-coupling                                   |
-| 2   | **Each camera = separate OS process** | `multiprocessing.Process` per camera for CPU isolation (no GIL)                   |
-| 3   | **Backlog-free**                      | Leaky queues (`maxsize=1`) — always latest frame, never stale                     |
-| 4   | **Many-to-Many PLC**                  | Multi-PLC driving logic where each camera explicitly defines multiple bit outputs |
-| 5   | **Native Desktop UI**                 | PySide6 (Qt) for high-performance rendering and localized control                 |
-| 6   | **AI-Aware Data Collection**          | Dedicated pipeline for raw captures; auto-pauses AI to maximize FPS               |
-| 7   | **Privacy-First Cropping**            | Crop applied *after* AI inference — detection on full frame, UI view is cropped   |
-| 8   | **Per-Camera Visual Alerts**          | Configurable alarm flash colors (Green/Red) in the dashboard grid                 |
+| #   | Principle                             | Implementation                                                                     |
+| --- | ------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1   | **Streaming ≠ Detection ≠ PLC**       | Three independent layers with no cross-coupling                                    |
+| 2   | **Each camera = separate OS process** | `multiprocessing.Process` per camera for CPU isolation (no GIL)                    |
+| 3   | **Backlog-free**                      | Leaky queues (`maxsize=1`) — always latest frame, never stale                      |
+| 4   | **Many-to-Many PLC**                  | Multi-PLC driving logic where each camera explicitly defines multiple bit outputs  |
+| 5   | **Native Desktop UI**                 | PySide6 (Qt) for high-performance rendering and localized control                  |
+| 6   | **Per-Camera Visual Alerts**          | Configurable alarm flash colors (Green/Red) in the dashboard grid                  |
+| 7   | **AI-Aware Data Collection**          | Dedicated pipeline for raw captures; auto-pauses AI to maximize FPS                |
+| 8   | **Privacy-First Cropping**            | Crop applied *after* AI inference — detection on full frame, UI view is cropped    |
+| 9   | **Production Data Isolation**         | Uses OS-standard paths (%APPDATA% / ~/.local) for portable, secure installation    |
+| 10  | **Bundled Optimized Inference**       | Pre-packages OpenVINO assets via PyInstaller to eliminate first-run conversion lag |
 
 ---
 
@@ -138,7 +140,10 @@ backend/
 ├── capture.py            RTSP connection stability and frame acquisition.
 └── config.py             JSON-based configuration persistence.
 
-data/                     Persistent storage.
+data/                     Storage during development (Local directory).
+│                         On production installation, this is replaced by:
+│                         Windows: %APPDATA%\VDetect
+│                         Linux: ~/.local/share/v-detect
 ├── cameras_db.json       Camera definitions and Data Collection configs.
 ├── plcs_db.json          Multi-PLC database instances.
 ├── events.db             SQLite detection log.
@@ -197,14 +202,43 @@ Due to its multiprocess architecture, V-Detect scales significantly with CPU cor
 
 ---
 
+## Deployment & Packaging
+
+V-Detect is architected for standalone, professional distribution on Windows and Linux.
+
+### 1. Windows Bundling
+- **Tool**: PyInstaller 6.x
+- **Config**: `vdetect.spec`
+- **Output**: Portable directory in `dist/VDetect`
+- **Strategy**: Bundles `torch`, `ultralytics`, `openvino`, and all backend source code while stripping unnecessary UI libraries.
+
+### 2. Windows Installer
+- **Tool**: Inno Setup
+- **Config**: `vdetect_installer.iss`
+- **Feature**: Creates a professional `VDetect_Setup.exe` with desktop shortcuts, start menu integration, and automated versioning.
+
+### 3. Linux Packaging (Ubuntu)
+- **Format**: AppImage
+- **Support**: Uses `scripts/vdetect.desktop` for system integration.
+- **Portable**: Designed to work on generic Ubuntu/Debian installs without user-level Python setup.
+
+---
+
 ## Running Locally
 
 ```bash
 # Setup environment
 python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+# On Windows
+.venv\Scripts\activate
+# On Linux
+source .venv/bin/activate
+
 pip install -r requirements.txt
 
-# Launch Application
+# Launch Application (Development)
 python desktop/main.py
+
+# Build Production Bundle (Windows)
+python scripts/build.py
 ```

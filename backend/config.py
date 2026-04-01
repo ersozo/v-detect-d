@@ -7,16 +7,34 @@ import urllib.parse
 
 logger = logging.getLogger(__name__)
 
+import sys
+
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BACKEND_DIR)
-# In Docker, we can use /app/data. Locally, it's ./data/
-DATA_DIR = os.environ.get("VSAFE_DATA_DIR", os.path.join(ROOT_DIR, "data"))
 
-# Ensure directories exist
+# Production-safe Data Directory strategy
+if os.environ.get("VSAFE_DATA_DIR"):
+    DATA_DIR = os.environ.get("VSAFE_DATA_DIR")
+elif getattr(sys, 'frozen', False):
+    # If running as a frozen executable (PyInstaller)
+    if os.name == 'nt': # Windows
+        DATA_DIR = os.path.join(os.environ.get('APPDATA', 'C:/Temp'), 'VDetect')
+    else: # Linux
+        DATA_DIR = os.path.expanduser('~/.local/share/v-detect')
+else:
+    # Development mode: local data/ folder
+    DATA_DIR = os.path.join(ROOT_DIR, "data")
+
 os.makedirs(DATA_DIR, exist_ok=True)
 
 MODELS_DIR = os.path.join(DATA_DIR, "models")
 os.makedirs(MODELS_DIR, exist_ok=True)
+
+# Path for bundled models (read-only fallbacks)
+BUNDLED_MODELS_DIR = None
+if getattr(sys, 'frozen', False):
+    # PyInstaller temporary path for bundled assets
+    BUNDLED_MODELS_DIR = os.path.join(sys._MEIPASS, "data", "models")
 
 # Path for static files (remains in backend)
 BASE_DIR = BACKEND_DIR

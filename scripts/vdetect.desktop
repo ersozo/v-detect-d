@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=V-Detect
+Comment=Industrial Object Detection & Monitoring
+Exec=VDetect
+Icon=v-detect
+Terminal=false
+Type=Application
+Categories=Graphics;Science;
+Keywords=Computer Vision;AI;PLC;Detection;

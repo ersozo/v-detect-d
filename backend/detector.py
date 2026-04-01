@@ -12,7 +12,7 @@ from typing import Optional
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from config import MODELS_DIR
+from config import MODELS_DIR, BUNDLED_MODELS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -29,18 +29,29 @@ class Detector:
     # Model loading (OpenVINO → PyTorch fallback)
     # ------------------------------------------------------------------
 
-    def _load_model(self, model_path: str) -> None:
+    def _load_model(self, model_input: str) -> None:
         import torch
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        if model_path in ["n", "s", "m", "l", "x"]:
-            model_pt = f"yolo26{model_path}.pt"
+        if model_input in ["n", "s", "m", "l", "x"]:
+            model_filename = f"yolo26{model_input}.pt"
         else:
-            model_pt = model_path
+            model_filename = model_input
 
-        # Resolve path relative to MODELS_DIR if not absolute
-        if not os.path.isabs(model_pt):
-            model_pt = os.path.join(MODELS_DIR, model_pt)
+        # 1. Resolve Path: Check if it's absolute, or file in MODELS_DIR, or bundled
+        if os.path.isabs(model_filename):
+            model_pt = model_filename
+        else:
+            # Check for user-uploaded models first
+            user_path = os.path.join(MODELS_DIR, model_filename)
+            if os.path.exists(user_path):
+                model_pt = user_path
+            # Fallback to bundled models
+            elif BUNDLED_MODELS_DIR and os.path.exists(os.path.join(BUNDLED_MODELS_DIR, model_filename)):
+                model_pt = os.path.join(BUNDLED_MODELS_DIR, model_filename)
+            else:
+                # Default to user path (may not exist yet, will trigger download/fail)
+                model_pt = user_path
 
         model_base = os.path.splitext(model_pt)[0]
         model_engine = f"{model_base}.engine"
@@ -63,18 +74,31 @@ class Detector:
         # 2. Try OpenVINO (CPU optimization)
         try:
             if not os.path.exists(model_ov):
+                # We only skip export in production if the model is in the read-only bundled directory.
+                # If a user manually added a .pt to the writable MODELS_DIR, we SHOULD allow export for performance.
+                is_bundled = BUNDLED_MODELS_DIR and model_pt.startswith(BUNDLED_MODELS_DIR)
+                
+                if getattr(sys, 'frozen', False) and is_bundled:
+                    logger.warning("OpenVINO folder not found for bundled model and cannot export in production.")
+                    raise FileNotFoundError(f"Missing bundled OpenVINO model: {model_ov}")
+                
                 logger.info("Converting %s → OpenVINO …", model_pt)
                 YOLO(model_pt).export(format="openvino", half=True)
+            
             self._model = YOLO(model_ov, task="detect")
             logger.info("Loaded OpenVINO model: %s", model_ov)
         except Exception as e:
             logger.warning("OpenVINO failed (%s), falling back to PyTorch", e)
             try:
                 # 3. Final fallback to PyTorch (.pt)
+                if not os.path.exists(model_pt):
+                    logger.error("FATAL: AI Model file not found at %s", model_pt)
+                    return
+                
                 self._model = YOLO(model_pt)
                 logger.info("Loaded PyTorch model: %s (Device: %s)", model_pt, device)
             except Exception as e2:
-                logger.error("Cannot load any YOLO model: %s", e2)
+                logger.error("CRITICAL error loading model %s: %s", model_pt, e2)
 
     # ------------------------------------------------------------------
     # Public API

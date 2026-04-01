@@ -116,24 +116,31 @@ class ProcessManager:
         if camera_id not in self.processes:
             return
 
-        self.stop_events[camera_id].set()
-        proc = self.processes[camera_id]
-        proc.join(timeout=5)
+        # Signal stop
+        if camera_id in self.stop_events:
+            self.stop_events[camera_id].set()
+
+        proc = self.processes.pop(camera_id)
+        # Faster join for better UI responsiveness on exit
+        proc.join(timeout=1.0)
         if proc.is_alive():
             proc.terminate()
-            proc.join(timeout=2)
+            proc.join(timeout=0.5)
 
-        for mapping in (
-            self.processes,
-            self.frame_queues,
-            self.event_queues,
-            self.control_queues,
-            self.response_queues,
-            self.stop_events,
-            self._camera_configs,
-        ):
-            mapping.pop(camera_id, None)
+        # Explicitly close queues to avoid deadlocks/leaks
+        for attr in ("frame_queues", "event_queues", "control_queues", "response_queues", "stop_events"):
+            q_map = getattr(self, attr)
+            if camera_id in q_map:
+                obj = q_map.pop(camera_id)
+                # Close Queue if applicable
+                if hasattr(obj, 'close'):
+                    try: obj.close()
+                    except: pass
+                if hasattr(obj, 'cancel_join_thread'):
+                    try: obj.cancel_join_thread()
+                    except: pass
 
+        self._camera_configs.pop(camera_id, None)
         logger.info("Camera process stopped: %s", camera_id)
 
     def get_capture_dir(self, camera_id: str) -> str:
@@ -147,7 +154,15 @@ class ProcessManager:
         return os.path.join(self.img_path, safe_name)
 
     def stop_all(self) -> None:
-        for camera_id in list(self.processes):
+        """Stops all managed camera processes in parallel for faster shutdown."""
+        pids = list(self.processes.keys())
+        # 1. Signal all to stop immediately
+        for camera_id in pids:
+            if camera_id in self.stop_events:
+                self.stop_events[camera_id].set()
+        
+        # 2. Join them with a collective timeout
+        for camera_id in pids:
             self.stop_camera(camera_id)
 
     # ------------------------------------------------------------------

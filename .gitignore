@@ -7,10 +7,15 @@ __pycache__/
 *.so
 
 # Distribution / packaging
-.Python
-build/
-develop-eggs/
+# ------------------------
 dist/
+build/
+Output/
+*.spec
+*.exe
+*.AppImage
+.Python
+develop-eggs/
 downloads/
 eggs/
 .eggs/
@@ -24,25 +29,26 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual environments
+# Python environments
+# -------------------
 venv/
 ENV/
 env/
 .venv/
 
-# Desktop Generated Files
-*.spec
-dist/
-build/
-
-# YOLO model files
-*.pt
+# AI Models & Optimization
+# ------------------------
+# Keep original .pt files but ignore local OpenVINO/Engine exports
 *_openvino_model/
 *.xml
 *.bin
+*.engine
+# Uncomment below if you don't want to track base .pt models
+# *.pt
 
 # Project specific
 data/
+assets/
 
 # Logs
 *.log

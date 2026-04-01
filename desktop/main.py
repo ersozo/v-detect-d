@@ -51,15 +51,36 @@ async def main_loop():
         AppState.plc_mgr.stop()
         plc_task.cancel()
         health_task.cancel()
+        
+        # Await tasks to ensure they are cleaned up
+        try:
+            await asyncio.gather(plc_task, health_task, return_exceptions=True)
+        except:
+            pass
+
         AppState.process_mgr.stop_all()
         AppState.event_store.close()
 
 if __name__ == "__main__":
+    import multiprocessing
+    
+    # Redirect stdout/stderr for windowed mode to prevent NoneType attribute 'write' error
+    if getattr(sys, 'frozen', False) and sys.platform == "win32":
+        f = open(os.devnull, 'w')
+        sys.stdout = f
+        sys.stderr = f
+
+    multiprocessing.freeze_support()
+
     app = QApplication.instance() or QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
     
     # Run the qasync event loop integration
     loop = qasync.QEventLoop(app)
     asyncio.set_event_loop(loop)
     
-    with loop:
-        loop.run_until_complete(main_loop())
+    try:
+        with loop:
+            loop.run_until_complete(main_loop())
+    finally:
+        app.quit()
