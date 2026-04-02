@@ -29,16 +29,28 @@ for tool in "${REQUIRED_TOOLS[@]}"; do
     fi
 done
 
-# 3. Virtual Environment & Requirements
-if [ ! -d ".venv_linux" ]; then
-    echo "[*] Creating virtual environment .venv_linux..."
+# 3. Virtual Environment Detection
+if [ -d ".venv" ]; then
+    echo "[*] Using existing virtual environment: .venv"
+    source .venv/bin/activate
+elif [ -d ".venv_linux" ]; then
+    echo "[*] Using existing virtual environment: .venv_linux"
+    source .venv_linux/bin/activate
+else
+    echo "[*] No existing virtual environment found. Creating .venv_linux..."
     python3 -m venv .venv_linux
+    source .venv_linux/bin/activate
+    echo "[*] Updating pip and installing requirements..."
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    pip install pyinstaller
 fi
-source .venv_linux/bin/activate
-echo "[*] Updating pip and installing requirements..."
-pip install --upgrade pip
-pip install -r requirements.txt
-pip install pyinstaller
+
+# Ensure PyInstaller is in the environment
+if ! command -v pyinstaller &> /dev/null; then
+    echo "[*] PyInstaller not found in environment. Installing..."
+    pip install pyinstaller
+fi
 
 # 4. Build with PyInstaller
 echo "[*] Cleaning old builds..."
