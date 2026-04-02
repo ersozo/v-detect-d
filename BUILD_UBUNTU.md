@@ -6,7 +6,7 @@ Follow these steps to create a portable AppImage of V-Detect from your Ubuntu sy
 Open your terminal and install the necessary system dependencies:
 ```bash
 sudo apt update
-sudo apt install -y python3-venv python3-pip libgl1-mesa-glx libglib2.0-0 file fuse wget imagemagick
+sudo apt install -y python3-venv python3-pip libgl1 libglib2.0-0 file fuse wget imagemagick
 ```
 
 ## 2. Using the Build Script
