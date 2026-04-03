@@ -9,6 +9,9 @@ numpy>=1.26.0
 openvino>=2024.0.0
 torch>=2.5.0
 torchvision>=0.20.0
+onnx>=1.15.0
+onnxslim>=0.1.30
+onnxruntime>=1.17.0
 
 # PLC Communication (optional)
 python-snap7>=1.3

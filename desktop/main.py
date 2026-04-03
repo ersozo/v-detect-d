@@ -63,14 +63,14 @@ async def main_loop():
 
 if __name__ == "__main__":
     import multiprocessing
+    # CRITICAL: This must be the very first thing called to stop infinite window loops in AppImages!
+    multiprocessing.freeze_support()
     
     # Redirect stdout/stderr for windowed mode to prevent NoneType attribute 'write' error
     if getattr(sys, 'frozen', False) and sys.platform == "win32":
         f = open(os.devnull, 'w')
         sys.stdout = f
         sys.stderr = f
-
-    multiprocessing.freeze_support()
 
     app = QApplication.instance() or QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)

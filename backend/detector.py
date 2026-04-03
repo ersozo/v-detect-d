@@ -7,10 +7,21 @@ Output: list of detection dicts.
 
 import logging
 import os
+import sys
 from typing import Optional
+
+# Disable Ultralytics automatic requirements and version checks in production
+os.environ["YOLO_CHECK"] = "False"
+os.environ["YOLO_VERBOSE"] = "False"
 
 import cv2
 import numpy as np
+
+# Forcefully stop Ultralytics from checking/installing requirements in AppImage
+import ultralytics.utils.checks
+def dummy_check(*args, **kwargs): return True
+ultralytics.utils.checks.check_requirements = dummy_check
+
 from ultralytics import YOLO
 from config import MODELS_DIR, BUNDLED_MODELS_DIR
 
@@ -73,22 +84,31 @@ class Detector:
 
         # 2. Try OpenVINO (CPU optimization)
         try:
+            # On frozen Linux (AppImage), the 'ir' (XML) frontend often fails to bundle properly.
+            # However, the 'onnx' frontend is usually available and provides similar performance.
+            use_onnx = getattr(sys, 'frozen', False) and sys.platform != "win32"
+            
+            if use_onnx:
+                model_ov = f"{model_base}.onnx"
+                export_format = "onnx"
+            else:
+                model_ov = f"{model_base}_openvino_model"
+                export_format = "openvino"
+
             if not os.path.exists(model_ov):
-                # We only skip export in production if the model is in the read-only bundled directory.
-                # If a user manually added a .pt to the writable MODELS_DIR, we SHOULD allow export for performance.
                 is_bundled = BUNDLED_MODELS_DIR and model_pt.startswith(BUNDLED_MODELS_DIR)
                 
                 if getattr(sys, 'frozen', False) and is_bundled:
-                    logger.warning("OpenVINO folder not found for bundled model and cannot export in production.")
-                    raise FileNotFoundError(f"Missing bundled OpenVINO model: {model_ov}")
+                    logger.warning("Optimized model not found and cannot export in production.")
+                    raise FileNotFoundError(f"Missing bundled model: {model_ov}")
                 
-                logger.info("Converting %s → OpenVINO …", model_pt)
-                YOLO(model_pt).export(format="openvino", half=True)
+                logger.info("Converting %s → %s …", model_pt, export_format)
+                YOLO(model_pt).export(format=export_format, half=True)
             
             self._model = YOLO(model_ov, task="detect")
-            logger.info("Loaded OpenVINO model: %s", model_ov)
+            logger.info("Loaded OpenVINO-compatible model: %s (Format: %s)", model_ov, export_format)
         except Exception as e:
-            logger.warning("OpenVINO failed (%s), falling back to PyTorch", e)
+            logger.warning("OpenVINO/ONNX loading failed (%s), falling back to PyTorch", e)
             try:
                 # 3. Final fallback to PyTorch (.pt)
                 if not os.path.exists(model_pt):

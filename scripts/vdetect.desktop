@@ -2,7 +2,7 @@
 Type=Application
 Name=V-Detect
 Comment=AI-Powered Object Detection Application
-Exec=AppRun
+Exec=VDetect
 Icon=vdetect
 Terminal=false
 Categories=Utility;Graphics;

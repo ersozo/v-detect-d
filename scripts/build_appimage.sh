@@ -15,35 +15,35 @@ APPDIR="$PROJECT_ROOT/build/AppDir"
 SCRIPTS_DIR="$PROJECT_ROOT/scripts"
 
 # 2. Prerequisites Check
-echo "[*] Checking system dependencies..."
-REQUIRED_TOOLS=("python3" "pip" "wget" "convert")
-for tool in "${REQUIRED_TOOLS[@]}"; do
-    if ! command -v "$tool" &> /dev/null; then
-        echo "[!] Error: '$tool' is not installed."
-        if [ "$tool" == "convert" ]; then
-             echo "    Try: sudo apt install -y imagemagick"
-        elif [ "$tool" == "python3" ]; then
-             echo "    Try: sudo apt install -y python3"
-        fi
-        exit 1
-    fi
-done
+# echo "[*] Checking system dependencies..."
+# REQUIRED_TOOLS=("python3" "pip" "wget" "convert")
+# for tool in "${REQUIRED_TOOLS[@]}"; do
+#     if ! command -v "$tool" &> /dev/null; then
+#         echo "[!] Error: '$tool' is not installed."
+#         if [ "$tool" == "convert" ]; then
+#              echo "    Try: sudo apt install -y imagemagick"
+#         elif [ "$tool" == "python3" ]; then
+#              echo "    Try: sudo apt install -y python3"
+#         fi
+#         exit 1
+#     fi
+# done
 
 # 3. Virtual Environment Detection
 if [ -d ".venv" ]; then
     echo "[*] Using existing virtual environment: .venv"
     source .venv/bin/activate
-elif [ -d ".venv_linux" ]; then
-    echo "[*] Using existing virtual environment: .venv_linux"
-    source .venv_linux/bin/activate
-else
-    echo "[*] No existing virtual environment found. Creating .venv_linux..."
-    python3 -m venv .venv_linux
-    source .venv_linux/bin/activate
-    echo "[*] Updating pip and installing requirements..."
-    pip install --upgrade pip
-    pip install -r requirements.txt
-    pip install pyinstaller
+# elif [ -d ".venv_linux" ]; then
+#     echo "[*] Using existing virtual environment: .venv_linux"
+#     source .venv_linux/bin/activate
+# else
+#     echo "[*] No existing virtual environment found. Creating .venv_linux..."
+#     python3 -m venv .venv_linux
+#     source .venv_linux/bin/activate
+#     echo "[*] Updating pip and installing requirements..."
+#     pip install --upgrade pip
+#     pip install -r requirements.txt
+#     pip install pyinstaller
 fi
 
 # Ensure PyInstaller is in the environment
@@ -101,6 +101,7 @@ if [ -z "$VERSION" ]; then VERSION="1.0.0"; fi
 
 ./linuxdeploy-x86_64.AppImage \
     --appdir "$APPDIR" \
+    --executable "$APPDIR/usr/bin/VDetect" \
     --desktop-file "$SCRIPTS_DIR/vdetect.desktop" \
     --icon-file "$PROJECT_ROOT/vdetect.png" \
     --output appimage
