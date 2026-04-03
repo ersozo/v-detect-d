@@ -1,6 +1,7 @@
 import sys
 import os
 import asyncio
+import argparse
 import qasync
 from PySide6.QtWidgets import QApplication
 
@@ -11,7 +12,7 @@ sys.path.insert(1, os.path.join(base_dir, "backend"))
 from backend.version import VERSION
 from desktop.core.app_state import AppState
 
-async def main_loop():
+async def main_loop(fullscreen=False):
     print(f"Starting V-Detect Application v{VERSION}...")
     try:
         AppState.init()
@@ -40,7 +41,10 @@ async def main_loop():
 
     from desktop.ui.main_window import MainWindow
     window = MainWindow()
-    window.show()
+    if fullscreen:
+        window.showFullScreen()
+    else:
+        window.show()
 
     # Block the coroutine until window closes
     try:
@@ -66,11 +70,18 @@ if __name__ == "__main__":
     # CRITICAL: This must be the very first thing called to stop infinite window loops in AppImages!
     multiprocessing.freeze_support()
     
+    parser = argparse.ArgumentParser(description="V-Detect Control Panel")
+    parser.add_argument("--fullscreen", action="store_true", help="Start in fullscreen mode")
+    args = parser.parse_args()
+
     # Redirect stdout/stderr for windowed mode to prevent NoneType attribute 'write' error
     if getattr(sys, 'frozen', False) and sys.platform == "win32":
-        f = open(os.devnull, 'w')
-        sys.stdout = f
-        sys.stderr = f
+        try:
+            f = open(os.devnull, 'w')
+            sys.stdout = f
+            sys.stderr = f
+        except:
+            pass
 
     app = QApplication.instance() or QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -81,6 +92,6 @@ if __name__ == "__main__":
     
     try:
         with loop:
-            loop.run_until_complete(main_loop())
+            loop.run_until_complete(main_loop(fullscreen=args.fullscreen))
     finally:
         app.quit()

@@ -2,7 +2,8 @@
 Type=Application
 Name=V-Detect
 Comment=AI-Powered Object Detection Application
-Exec=VDetect
+Exec=VDetect --fullscreen
 Icon=vdetect
 Terminal=false
 Categories=Utility;Graphics;
+StartupWMClass=VDetect

@@ -297,3 +297,16 @@ class MainWindow(QMainWindow):
         for card in self.camera_cards.values():
             card.stop_worker()
         super().closeEvent(event)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            if self.isFullScreen():
+                self.showNormal()
+            else:
+                self.close()
+        elif event.key() == Qt.Key_F11:
+            if self.isFullScreen():
+                self.showNormal()
+            else:
+                self.showFullScreen()
+        super().keyPressEvent(event)
